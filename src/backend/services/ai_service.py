@@ -1,11 +1,10 @@
 import random
-from enum import Enum
 from typing import List, Optional
-import tkinter as tk
 from src.backend.models.grid import Grid
 from src.backend.models.hunter import TreasureHunter
 from src.backend.models.knight import Knight
 from src.backend.models.treasure import Treasure
+
 
 class AIService:
     @staticmethod

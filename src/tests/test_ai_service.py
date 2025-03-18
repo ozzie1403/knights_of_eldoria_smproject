@@ -16,7 +16,6 @@ def test_find_nearest_treasure():
     nearest_treasure = AIService.find_nearest_treasure(hunter, grid)
     assert nearest_treasure == (7, 7)
 
-
 def test_move_hunter_towards_treasure():
     grid = Grid(10)
     hunter = TreasureHunter("Hunter1", (5, 5))

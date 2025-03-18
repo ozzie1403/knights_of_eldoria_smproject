@@ -3,12 +3,10 @@ from enum import Enum
 from typing import List, Optional
 import tkinter as tk
 
-
 class TreasureType(Enum):
     BRONZE = 3  # Increases wealth by 3%
     SILVER = 7  # Increases wealth by 7%
     GOLD = 13  # Increases wealth by 13%
-
 
 class Treasure:
     def __init__(self, treasure_type: TreasureType, position: tuple[int, int]):
@@ -55,7 +53,6 @@ class Grid:
                     if treasure.is_depleted():
                         self.cells[x][y] = None
 
-
 class GameUI:
     def __init__(self, master, simulation):
         self.master = master
@@ -79,7 +76,6 @@ class GameUI:
                 if treasure:
                     self.canvas.create_oval(x * 25, y * 25, (x + 1) * 25, (y + 1) * 25, fill="gold")
         self.master.after(1000, self.update_ui)
-
 
 if __name__ == "__main__":
     from src.backend.models.grid import Grid

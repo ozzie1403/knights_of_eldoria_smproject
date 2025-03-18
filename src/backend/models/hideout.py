@@ -1,18 +1,18 @@
 from typing import List
-from backend.models.treasure import Treasure
-from backend.models.hunter import TreasureHunter
+from src.backend.models.treasure import Treasure
+from src.backend.models.hunter import TreasureHunter
 
 class Hideout:
     MAX_CAPACITY = 5  # Maximum number of hunters allowed
 
     def __init__(self, x: int, y: int):
-        """Initialize a hideout at (x, y) location."""
+        """Initializes a hideout at (x, y) location."""
         self.x = x
         self.y = y
         self.hunters: List[TreasureHunter] = []  # Hunters currently resting
         self.stored_treasures: List[Treasure] = []  # Treasures stored in the hideout
 
-    def add_hunter(self, hunter: TreasureHunter):
+    def add_hunter(self, hunter: TreasureHunter) -> bool:
         """Adds a hunter if there's space."""
         if len(self.hunters) < Hideout.MAX_CAPACITY:
             self.hunters.append(hunter)
@@ -31,7 +31,7 @@ class Hideout:
     def rest_hunters(self):
         """Recovers stamina of all hunters resting in the hideout."""
         for hunter in self.hunters:
-            hunter.recover_stamina()
+            hunter.rest()
 
     def share_information(self):
         """Hunters share knowledge about treasure & knights."""
