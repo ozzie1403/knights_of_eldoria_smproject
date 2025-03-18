@@ -1,31 +1,10 @@
 import random
-from enum import Enum
-from typing import List, Optional
-
-
-class TreasureType(Enum):
-    BRONZE = 3  # Increases wealth by 3%
-    SILVER = 7  # Increases wealth by 7%
-    GOLD = 13  # Increases wealth by 13%
-
-
-class Treasure:
-    def __init__(self, treasure_type: TreasureType, position: tuple[int, int]):
-        self.treasure_type = treasure_type
-        self.value = treasure_type.value  # Percentage value increase
-        self.position = position
-
-    def decay(self):
-        """Treasure loses 0.1% of its value per step."""
-        self.value = max(0, self.value - 0.1)
-
-    def is_depleted(self) -> bool:
-        """Returns True if the treasure has lost all its value."""
-        return self.value <= 0
-
+from typing import Optional
+from src.backend.models.treasure import Treasure, TreasureType
 
 class Grid:
     def __init__(self, size: int = 20):
+        """Initializes a grid with the given size."""
         self.size = size
         self.cells = [[None for _ in range(size)] for _ in range(size)]
 
@@ -34,7 +13,7 @@ class Grid:
         return x % self.size, y % self.size
 
     def place_treasure(self, count: int = 10):
-        """Randomly place treasures in the grid."""
+        """Randomly places treasures on the grid."""
         for _ in range(count):
             x, y = random.randint(0, self.size - 1), random.randint(0, self.size - 1)
             treasure_type = random.choice(list(TreasureType))
@@ -54,44 +33,5 @@ class Grid:
                     if treasure.is_depleted():
                         self.cells[x][y] = None
 
-
-class TreasureHunter:
-    def __init__(self, name: str, position: tuple[int, int], stamina: float = 100.0):
-        self.name = name
-        self.position = position
-        self.stamina = stamina
-        self.carrying_treasure: Optional[Treasure] = None
-
-    def move(self, direction: str, grid: Grid):
-        """Moves the hunter in a given direction if stamina allows."""
-        if self.stamina <= 0:
-            return
-
-        x, y = self.position
-        if direction == "up":
-            y -= 1
-        elif direction == "down":
-            y += 1
-        elif direction == "left":
-            x -= 1
-        elif direction == "right":
-            x += 1
-
-        self.position = grid.wrap_position(x, y)
-        self.stamina = max(0, self.stamina - 2)  # Decrease stamina by 2% per move
-
-    def pick_up_treasure(self, grid: Grid):
-        """Picks up a treasure if available and not already carrying one."""
-        if self.carrying_treasure is None:
-            treasure = grid.get_treasure_at(*self.position)
-            if treasure:
-                self.carrying_treasure = treasure
-                grid.cells[self.position[0]][self.position[1]] = None
-
-    def drop_treasure(self):
-        """Drops the carried treasure."""
-        self.carrying_treasure = None
-
-    def rest(self):
-        """Regains stamina while resting in a hideout."""
-        self.stamina = min(100, self.stamina + 1)
+    def __repr__(self):
+        return f"Grid(Size: {self.size}x{self.size})"
