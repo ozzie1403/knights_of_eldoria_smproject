@@ -1,8 +1,11 @@
 import random
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from src.backend.models.grid import Grid
 from src.backend.models.treasure import Treasure
-from src.backend.models.hideout import Hideout
+
+if TYPE_CHECKING:
+    from src.backend.models.hideout import Hideout  # Imported only for type hints
+
 
 class TreasureHunter:
     def __init__(self, name: str, position: tuple[int, int], stamina: float = 100.0):
@@ -48,7 +51,7 @@ class TreasureHunter:
         """Regains stamina while resting in a hideout."""
         self.stamina = min(100, self.stamina + 1)
 
-    def deposit_treasure(self, hideout: Hideout):
+    def deposit_treasure(self, hideout: "Hideout"):
         """Deposits treasure in the hideout if carrying any."""
         if self.carrying_treasure:
             hideout.store_treasure(self.carrying_treasure)
