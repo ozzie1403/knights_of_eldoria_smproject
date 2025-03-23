@@ -5,12 +5,13 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="9beab333-fed9-4b17-b969-8a2a53429ad7" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/src/front_end/ui.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/backend/services/movement_service.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/middle_end/controllers/game_controller.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/tests/test_hunter.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/tests/test_hunter.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/tests/test_knight.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/tests/test_knight.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/tests/test_treasure.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/tests/test_treasure.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/backend/models/hunter.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/backend/models/hunter.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/front_end/ui.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/front_end/ui.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/middle_end/api/game_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/middle_end/api/game_api.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -48,15 +49,16 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Python.eldoria.executor&quot;: &quot;Run&quot;,
-    &quot;Python.main.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/Users/ozzys.MSI/PycharmProjects/knights_of_eldoria_smproject&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Python.eldoria.executor": "Run",
+    "Python.main.executor": "Run",
+    "Python.ui.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "git-widget-placeholder": "master",
+    "last_opened_file_path": "C:/Users/ozzys.MSI/PycharmProjects/knights_of_eldoria_smproject"
   }
-}</component>
+}]]></component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>

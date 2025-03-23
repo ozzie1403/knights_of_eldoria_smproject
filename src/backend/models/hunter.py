@@ -6,7 +6,6 @@ from src.backend.models.treasure import Treasure
 if TYPE_CHECKING:
     from src.backend.models.hideout import Hideout  # Imported only for type hints
 
-
 class TreasureHunter:
     def __init__(self, name: str, position: tuple[int, int], stamina: float = 100.0):
         """Initializes a treasure hunter with a name, position, and stamina."""
