@@ -5,6 +5,7 @@ from src.backend.models.knight import Knight
 from src.backend.models.hideout import Hideout
 from src.backend.services.ai_service import AIService
 
+
 class Simulation:
     def __init__(self, grid_size=20, num_hunters=3, num_knights=2, num_treasures=10, num_hideouts=2):
         """Initializes the simulation environment."""

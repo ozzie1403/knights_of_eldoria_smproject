@@ -1,14 +1,13 @@
 import tkinter as tk
-from src.backend.models.simulation import Simulation
 import requests
+from src.backend.models.simulation import Simulation
 
 API_URL = "http://127.0.0.1:5000"
 
 class GameUI:
-    def __init__(self, master, simulation: Simulation):
+    def __init__(self, master):
         """Initializes the game UI with controls and a status panel."""
         self.master = master
-        self.simulation = simulation
         self.running = False
         self.step_count = 0
 
@@ -33,13 +32,10 @@ class GameUI:
         self.update_ui()
 
     def update_ui(self):
-        """Updates the UI with the latest game state."""
+        """Fetches game state from API and updates UI."""
         self.canvas.delete("all")
         self.draw_grid()
         self.draw_entities()
-        if self.running:
-            self.simulation.run_step()
-            self.step_count += 1
         self.update_status()
         self.master.after(1000, self.update_ui)  # Refresh every second
 
@@ -51,43 +47,49 @@ class GameUI:
             self.canvas.create_line(0, i, 500, i, fill="gray")
 
     def draw_entities(self):
-        """Draws hunters, knights, and treasures."""
-        cell_size = 25
-        for hunter in self.simulation.hunters:
-            x, y = hunter.position
-            self.canvas.create_oval(x * cell_size, y * cell_size, (x + 1) * cell_size, (y + 1) * cell_size, fill="blue")
+        """Fetches game state and draws hunters, knights, and treasures."""
+        try:
+            response = requests.get(f"{API_URL}/state")
+            game_state = response.json()
+            cell_size = 25
 
-        for knight in self.simulation.knights:
-            x, y = knight.position
-            self.canvas.create_rectangle(x * cell_size, y * cell_size, (x + 1) * cell_size, (y + 1) * cell_size,
-                                         fill="red")
+            for hunter in game_state["hunters"]:
+                x, y = hunter["position"]
+                self.canvas.create_oval(x * cell_size, y * cell_size, (x + 1) * cell_size, (y + 1) * cell_size,
+                                        fill="blue")
 
-        for x in range(self.simulation.grid.size):
-            for y in range(self.simulation.grid.size):
-                treasure = self.simulation.grid.get_treasure_at(x, y)
-                if treasure:
-                    self.canvas.create_oval(x * cell_size, y * cell_size, (x + 1) * cell_size, (y + 1) * cell_size,
-                                            fill="gold")
+            for knight in game_state["knights"]:
+                x, y = knight["position"]
+                self.canvas.create_rectangle(x * cell_size, y * cell_size, (x + 1) * cell_size, (y + 1) * cell_size,
+                                             fill="red")
+
+            for treasure in game_state["treasures"]:
+                x, y = treasure["position"]
+                self.canvas.create_oval(x * cell_size, y * cell_size, (x + 1) * cell_size, (y + 1) * cell_size,
+                                        fill="gold")
+        except requests.exceptions.RequestException:
+            print("Error fetching game state.")
 
     def update_status(self):
-        """Updates the status panel with the current game state."""
-        num_hunters = len(self.simulation.hunters)
-        num_knights = len(self.simulation.knights)
-        num_treasures = sum(1 for x in range(self.simulation.grid.size) for y in range(self.simulation.grid.size) if
-                            self.simulation.grid.get_treasure_at(x, y))
-        self.status_label.config(
-            text=f"Step: {self.step_count} | Hunters: {num_hunters} | Knights: {num_knights} | Treasures: {num_treasures}")
+        """Updates the status panel with the latest game state."""
+        try:
+            response = requests.get(f"{API_URL}/state")
+            game_state = response.json()
+            self.status_label.config(
+                text=f"Step: {self.step_count} | Hunters: {len(game_state['hunters'])} | Knights: {len(game_state['knights'])} | Treasures: {len(game_state['treasures'])}"
+            )
+        except requests.exceptions.RequestException:
+            self.status_label.config(text="Error fetching game state.")
 
     def start_simulation(self):
-        """Starts the simulation."""
-        self.running = True
+        """Starts the simulation via API call."""
+        requests.post(f"{API_URL}/start", json={"steps": 100})
 
     def pause_simulation(self):
         """Pauses the simulation."""
-        self.running = False
+        self.running = False  # No API pause yet, implemented locally
 
     def reset_simulation(self):
-        """Resets the simulation to its initial state."""
-        self.simulation = Simulation(grid_size=20, num_hunters=3, num_knights=2, num_treasures=10, num_hideouts=2)
-        self.running = False
+        """Resets the simulation via API call."""
+        requests.post(f"{API_URL}/reset")
         self.step_count = 0

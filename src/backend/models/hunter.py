@@ -4,7 +4,8 @@ from src.backend.models.grid import Grid
 from src.backend.models.treasure import Treasure
 
 if TYPE_CHECKING:
-    from src.backend.models.hideout import Hideout  # Imported only for type hints
+    from src.backend.models.hideout import Hideout
+
 
 class TreasureHunter:
     def __init__(self, name: str, position: tuple[int, int], stamina: float = 100.0):

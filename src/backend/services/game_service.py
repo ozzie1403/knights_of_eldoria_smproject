@@ -1,5 +1,6 @@
 from src.backend.models.simulation import Simulation
 
+
 class GameService:
     def __init__(self, simulation: Simulation):
         """Initializes the game service with a simulation instance."""
@@ -7,9 +8,7 @@ class GameService:
 
     def start_game(self, steps=100):
         """Runs the simulation for a given number of steps."""
-        print("Starting game simulation...")
         self.simulation.run(steps)
-        print("Simulation completed.")
 
     def get_game_state(self):
         """Returns a snapshot of the game state."""

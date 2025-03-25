@@ -1,9 +1,8 @@
 import pytest
-from backend.models.grid import Grid
-from backend.models.hunter import TreasureHunter
-from backend.models.treasure import Treasure, TreasureType
-from backend.models.hideout import Hideout
-
+from src.backend.models.grid import Grid
+from src.backend.models.hunter import TreasureHunter
+from src.backend.models.treasure import Treasure, TreasureType
+from src.backend.models.hideout import Hideout
 
 def test_hunter_movement():
     grid = Grid(10)
@@ -15,7 +14,6 @@ def test_hunter_movement():
     hunter.move("left", grid)
     assert hunter.position == (4, 4)
 
-
 def test_hunter_pick_up_treasure():
     grid = Grid(10)
     hunter = TreasureHunter("Hunter1", (5, 5))
@@ -25,7 +23,6 @@ def test_hunter_pick_up_treasure():
     hunter.pick_up_treasure(grid)
     assert hunter.carrying_treasure == treasure
     assert grid.get_treasure_at(5, 5) is None
-
 
 def test_hunter_drop_treasure():
     hunter = TreasureHunter("Hunter1", (5, 5))
@@ -41,7 +38,6 @@ def test_hunter_rest():
 
     hunter.rest()
     assert hunter.stamina == 51
-
 
 def test_hunter_deposit_treasure():
     hunter = TreasureHunter("Hunter1", (5, 5))
