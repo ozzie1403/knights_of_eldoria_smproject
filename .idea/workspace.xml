@@ -6,20 +6,10 @@
   <component name="ChangeListManager">
     <list default="true" id="9beab333-fed9-4b17-b969-8a2a53429ad7" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/backend/models/grid.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/backend/models/grid.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/backend/models/hideout.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/backend/models/hideout.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/backend/models/hunter.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/backend/models/hunter.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/backend/models/knight.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/backend/models/knight.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/backend/models/simulation.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/backend/models/simulation.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/backend/models/treasure.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/backend/models/treasure.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/backend/services/ai_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/backend/services/ai_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/backend/services/game_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/backend/services/game_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/front_end/ui.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/front_end/ui.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/middle_end/api/game_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/middle_end/api/game_api.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/middle_end/controllers/game_controller.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/middle_end/controllers/game_controller.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/tests/test_ai_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/tests/test_ai_service.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/tests/test_hunter.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/tests/test_hunter.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/tests/test_knight.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/tests/test_knight.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/tests/test_treasure.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/tests/test_treasure.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

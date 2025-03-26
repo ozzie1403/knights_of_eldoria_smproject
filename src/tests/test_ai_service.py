@@ -5,6 +5,7 @@ from src.backend.models.knight import Knight
 from src.backend.models.treasure import Treasure, TreasureType
 from src.backend.services.ai_service import AIService
 
+
 def test_find_nearest_treasure():
     grid = Grid(10)
     hunter = TreasureHunter("Hunter1", (5, 5))
@@ -16,6 +17,7 @@ def test_find_nearest_treasure():
     nearest_treasure = AIService.find_nearest_treasure(hunter, grid)
     assert nearest_treasure == (7, 7)
 
+
 def test_move_hunter_towards_treasure():
     grid = Grid(10)
     hunter = TreasureHunter("Hunter1", (5, 5))
@@ -23,6 +25,7 @@ def test_move_hunter_towards_treasure():
 
     AIService.move_hunter_towards_treasure(hunter, grid)
     assert hunter.position in [(6, 5), (5, 6)]  # Moving towards (7,7)
+
 
 def test_move_knight_towards_hunter():
     grid = Grid(10)
