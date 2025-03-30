@@ -1,6 +1,5 @@
 from src.backend.models.simulation import Simulation
 
-
 class GameService:
     def __init__(self, simulation: Simulation):
         """Initializes the game service with a simulation instance."""

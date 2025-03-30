@@ -5,9 +5,10 @@ from src.backend.models.simulation import Simulation
 API_URL = "http://127.0.0.1:5000"
 
 class GameUI:
-    def __init__(self, master):
+    def __init__(self, master, simulation):
         """Initializes the game UI with controls and a status panel."""
         self.master = master
+        self.simulation = simulation
         self.running = False
         self.step_count = 0
 
@@ -70,6 +71,8 @@ class GameUI:
         except requests.exceptions.RequestException:
             print("Error fetching game state.")
 
+        print("DEBUG: Game State ->", game_state)  # Check full response
+
     def update_status(self):
         """Updates the status panel with the latest game state."""
         try:
@@ -93,3 +96,12 @@ class GameUI:
         """Resets the simulation via API call."""
         requests.post(f"{API_URL}/reset")
         self.step_count = 0
+
+    def fetch_game_state(self):
+        try:
+            response = requests.get(f"{API_URL}/state")
+            response.raise_for_status()  # Raise an error if request fails
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching game state: {e}")  # More detailed error
+            return None

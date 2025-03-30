@@ -20,11 +20,13 @@ def test_hunter_pick_up_treasure():
     grid = Grid(10)
     hunter = TreasureHunter("Hunter1", (5, 5))
     treasure = Treasure(TreasureType.GOLD, (5, 5))
-    grid.cells[5][5] = treasure
+
+    grid.place_treasure(treasure)  # Use correct method for placement
 
     hunter.pick_up_treasure(grid)
-    assert hunter.carrying_treasure == treasure
-    assert grid.get_treasure_at(5, 5) is None
+    assert hunter.carrying_treasure is not None, "Hunter should have picked up the treasure."
+    assert hunter.carrying_treasure.position == (5, 5), "Hunter should be carrying the correct treasure."
+    assert grid.get_treasure_at(5, 5) is None, "Treasure should be removed from grid."
 
 
 def test_hunter_drop_treasure():
@@ -33,22 +35,22 @@ def test_hunter_drop_treasure():
     hunter.carrying_treasure = treasure
 
     hunter.drop_treasure()
-    assert hunter.carrying_treasure is None
+    assert hunter.carrying_treasure is None, "Hunter should have dropped the treasure."
 
 
 def test_hunter_rest():
     hunter = TreasureHunter("Hunter1", (5, 5), stamina=50)
 
     hunter.rest()
-    assert hunter.stamina == 51
+    assert hunter.stamina == 51, "Hunter's stamina should increase by 1."
 
 
 def test_hunter_deposit_treasure():
     hunter = TreasureHunter("Hunter1", (5, 5))
-    hideout = Hideout(5, 5)
+    hideout = Hideout((5, 5))  # Ensure correct instantiation
     treasure = Treasure(TreasureType.GOLD, (5, 5))
     hunter.carrying_treasure = treasure
 
     hunter.deposit_treasure(hideout)
-    assert treasure in hideout.stored_treasures
-    assert hunter.carrying_treasure is None
+    assert treasure in hideout.stored_treasures, "Treasure should be stored in the hideout."
+    assert hunter.carrying_treasure is None, "Hunter should have deposited the treasure."

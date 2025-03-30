@@ -12,25 +12,26 @@ class Knight:
         self.position = position
         self.energy = energy
 
-    def move_towards(self, target_position: tuple[int, int], grid: Grid):
-        """Moves the knight one step towards the target position if energy allows."""
-        if self.energy <= 20:
-            return  # Knights retreat when energy is low
-
+    def move_towards(self, target_position, grid):
         x, y = self.position
         tx, ty = target_position
 
-        if x < tx:
-            x += 1
-        elif x > tx:
-            x -= 1
-        if y < ty:
-            y += 1
-        elif y > ty:
-            y -= 1
+        # Generate possible knight moves (L-shape)
+        possible_moves = [
+            (x + 2, y + 1), (x + 2, y - 1),
+            (x - 2, y + 1), (x - 2, y - 1),
+            (x + 1, y + 2), (x + 1, y - 2),
+            (x - 1, y + 2), (x - 1, y - 2),
+        ]
 
-        self.position = grid.wrap_position(x, y)
-        self.energy = max(0, self.energy - 10)  # Knights lose 10% energy per move
+        # Filter out moves that are out of bounds
+        valid_moves = [(nx, ny) for nx, ny in possible_moves if grid.is_within_bounds(nx, ny)]
+
+        # Select the move that gets closest to the target
+        valid_moves.sort(key=lambda pos: abs(pos[0] - tx) + abs(pos[1] - ty))
+
+        if valid_moves:
+            self.position = valid_moves[0]  # Move to the best valid position
 
     def attack_hunter(self, hunter: "TreasureHunter"):
         """Knights attack a hunter, reducing stamina and forcing treasure drop."""

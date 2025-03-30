@@ -1,5 +1,10 @@
-import os
 import json
+import os
+from flask import Flask, jsonify
+
+# Initialize Flask app
+app = Flask(__name__)
+
 from src.backend.services.game_service import GameService
 from src.backend.models.simulation import Simulation
 
@@ -37,3 +42,29 @@ class GameAPI:
             with open(self.state_file, "r") as f:
                 return json.load(f)
         return None
+
+# ✅ Instantiate the game API globally
+game_api = GameAPI()
+
+@app.route('/', methods=['GET'])
+def home():
+    """Home route to confirm API is running."""
+    return jsonify({"message": "Welcome to the Game API", "endpoints": ["/state"]})
+
+@app.route('/state', methods=['GET'])
+def fetch_game_state():
+    """Flask route to fetch game state."""
+    try:
+        state = game_api.get_game_state()
+        return jsonify({"status": "success", "game_state": state})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+def get_game_state():
+    global game_state
+    if "hunters" not in game_state:  # Ensure key exists
+        game_state["hunters"] = []   # Set to empty list if missing
+    return jsonify(game_state)
+
+if __name__ == "__main__":
+    app.run(debug=True)

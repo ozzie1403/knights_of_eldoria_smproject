@@ -10,8 +10,9 @@ def test_knight_movement():
     target_position = (5, 5)
 
     knight.move_towards(target_position, grid)
-    assert knight.position in [(3, 2), (2, 3)]  # Moving towards (5,5)
 
+    # Ensure knight moves correctly
+    assert knight.position in [(3, 2), (2, 3)], f"Unexpected position: {knight.position}"
 
 def test_knight_attack_hunter():
     knight = Knight((5, 5))
