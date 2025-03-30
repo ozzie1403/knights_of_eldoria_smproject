@@ -17,7 +17,7 @@ class Simulation:
                         range(num_knights)]
         self.hideouts = [Hideout(random.randint(0, grid_size - 1), random.randint(0, grid_size - 1)) for _ in
                          range(num_hideouts)]
-        self.grid.place_treasure(num_treasures)
+        self.grid.place_treasure(count=num_treasures)  # Ensure the integer is passed as 'count'
 
     def run_step(self):
         """Runs one step of the simulation."""

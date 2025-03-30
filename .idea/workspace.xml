@@ -6,14 +6,10 @@
   <component name="ChangeListManager">
     <list default="true" id="9beab333-fed9-4b17-b969-8a2a53429ad7" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/backend/models/knight.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/backend/models/knight.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/backend/services/game_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/backend/services/game_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/front_end/ui.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/front_end/ui.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/middle_end/api/game_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/middle_end/api/game_api.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/tests/test_ai_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/tests/test_ai_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/backend/models/grid.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/backend/models/grid.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/backend/models/hunter.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/backend/models/hunter.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/backend/models/simulation.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/backend/models/simulation.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/tests/test_hunter.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/tests/test_hunter.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/tests/test_knight.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/tests/test_knight.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -42,6 +38,9 @@
     &quot;accountId&quot;: &quot;f0c3d22d-69ab-4a86-843b-17f8de6579cd&quot;
   }
 }</component>
+  <component name="ProblemsViewState">
+    <option name="selectedTabId" value="CurrentFile" />
+  </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 0
 }</component>
@@ -63,6 +62,7 @@
     "Python.game_api.executor": "Run",
     "Python.game_controller.executor": "Run",
     "Python.game_service.executor": "Run",
+    "Python.grid.executor": "Run",
     "Python.hideout.executor": "Run",
     "Python.hunter.executor": "Run",
     "Python.knight.executor": "Run",
@@ -73,7 +73,8 @@
     "Python.ui.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "git-widget-placeholder": "master",
-    "last_opened_file_path": "C:/Users/ozzys.MSI/PycharmProjects/knights_of_eldoria_smproject"
+    "last_opened_file_path": "C:/Users/ozzys.MSI/PycharmProjects/knights_of_eldoria_smproject",
+    "run.code.analysis.last.selected.profile": "pProject Default"
   }
 }]]></component>
   <component name="RunManager">
