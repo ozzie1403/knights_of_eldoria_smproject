@@ -24,10 +24,10 @@ class Treasure:
 
 
 class Grid:
-    def __init__(self, size: int = 20) -> object:
+    def __init__(self, size: int = 20):
         """Initializes a grid with the given size."""
         self.size = size
-        self.cells = [[None for _ in range(size)] for _ in range(size)]
+        self.cells = [[[] for _ in range(size)] for _ in range(size)]  # Store lists, not single objects
 
     def wrap_position(self, x: int, y: int) -> tuple[int, int]:
         """Ensures grid wraps around edges."""
@@ -36,19 +36,18 @@ class Grid:
     def place_treasure(self, treasure: Treasure = None, count: int = 10):
         if treasure:
             x, y = treasure.position
-            self.cells[x][y] = treasure  # Directly assign the treasure object
+            self.cells[x][y].append(treasure)  # Store as list
         else:
             for _ in range(count):
                 x, y = random.randint(0, self.size - 1), random.randint(0, self.size - 1)
                 treasure_type = random.choice(list(TreasureType))
-                self.cells[x][y] = Treasure(treasure_type, (x, y))
+                self.cells[x][y].append(Treasure(treasure_type, (x, y)))  # Store as list
 
-    def get_treasure_at(self, x: int, y: int) -> Optional[Treasure]:
-        """Returns the treasure at the given position, if any."""
-        if 0 <= x < self.size and 0 <= y < self.size:  # Ensure valid range
-            cell = self.cells[x][y]
-            return cell if isinstance(cell, Treasure) else None
-        return None
+    def get_treasure_at(self, x: int, y: int) -> list[Treasure]:
+        """Returns a list of treasures at the given position."""
+        if 0 <= x < self.size and 0 <= y < self.size:
+            return self.cells[x][y]  # Now returns a list
+        return []
 
     def update_treasures(self):
         """Decays all treasures and removes depleted ones."""

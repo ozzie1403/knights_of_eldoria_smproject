@@ -38,11 +38,10 @@ class TreasureHunter:
         """Picks up a treasure if available and not already carrying one."""
         if self.carrying_treasure is None:
             x, y = self.position
-            treasure = grid.get_treasure_at(x, y)  # Ensure retrieval is correct
-            if treasure:
-                self.known_treasures.append((x, y))  # Track known treasures before removing
-                self.carrying_treasure = treasure  # Assign picked-up treasure
-                grid.cells[x][y] = None  # Remove treasure from grid
+            treasures = grid.get_treasure_at(x, y)  # Now retrieves a list
+            if treasures:
+                self.known_treasures.append((x, y))  # Track known treasure locations
+                self.carrying_treasure = treasures.pop(0)  # Pick up one treasure
 
     def drop_treasure(self):
         """Drops the carried treasure."""

@@ -8,8 +8,7 @@
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/backend/models/grid.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/backend/models/grid.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/backend/models/hunter.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/backend/models/hunter.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/backend/models/simulation.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/backend/models/simulation.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/tests/test_hunter.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/tests/test_hunter.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/front_end/ui.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/front_end/ui.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -50,34 +49,34 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Python tests.Python tests for test_knight.test_knight_movement.test_knight_attack_hunter.executor": "Run",
-    "Python tests.Python tests in test_ai_service.py.executor": "Run",
-    "Python tests.Python tests in test_hunter.py.executor": "Run",
-    "Python tests.Python tests in test_knight.py.executor": "Run",
-    "Python tests.Python tests in test_treasure.py.executor": "Run",
-    "Python.ai_service.executor": "Run",
-    "Python.eldoria.executor": "Run",
-    "Python.game_api.executor": "Run",
-    "Python.game_controller.executor": "Run",
-    "Python.game_service.executor": "Run",
-    "Python.grid.executor": "Run",
-    "Python.hideout.executor": "Run",
-    "Python.hunter.executor": "Run",
-    "Python.knight.executor": "Run",
-    "Python.main.executor": "Run",
-    "Python.movement_service.executor": "Run",
-    "Python.simulation.executor": "Run",
-    "Python.treasure.executor": "Run",
-    "Python.ui.executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "git-widget-placeholder": "master",
-    "last_opened_file_path": "C:/Users/ozzys.MSI/PycharmProjects/knights_of_eldoria_smproject",
-    "run.code.analysis.last.selected.profile": "pProject Default"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Python tests.Python tests for test_knight.test_knight_movement.test_knight_attack_hunter.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.Python tests in test_ai_service.py.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.Python tests in test_hunter.py.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.Python tests in test_knight.py.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.Python tests in test_treasure.py.executor&quot;: &quot;Run&quot;,
+    &quot;Python.ai_service.executor&quot;: &quot;Run&quot;,
+    &quot;Python.eldoria.executor&quot;: &quot;Run&quot;,
+    &quot;Python.game_api.executor&quot;: &quot;Run&quot;,
+    &quot;Python.game_controller.executor&quot;: &quot;Run&quot;,
+    &quot;Python.game_service.executor&quot;: &quot;Run&quot;,
+    &quot;Python.grid.executor&quot;: &quot;Run&quot;,
+    &quot;Python.hideout.executor&quot;: &quot;Run&quot;,
+    &quot;Python.hunter.executor&quot;: &quot;Run&quot;,
+    &quot;Python.knight.executor&quot;: &quot;Run&quot;,
+    &quot;Python.main.executor&quot;: &quot;Run&quot;,
+    &quot;Python.movement_service.executor&quot;: &quot;Run&quot;,
+    &quot;Python.simulation.executor&quot;: &quot;Run&quot;,
+    &quot;Python.treasure.executor&quot;: &quot;Run&quot;,
+    &quot;Python.ui.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/ozzys.MSI/PycharmProjects/knights_of_eldoria_smproject&quot;,
+    &quot;run.code.analysis.last.selected.profile&quot;: &quot;pProject Default&quot;
   }
-}]]></component>
-  <component name="RunManager">
+}</component>
+  <component name="RunManager" selected="Python.main">
     <configuration name="main" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="knights_of_eldoria_smproject" />
       <option name="ENV_FILES" value="" />
@@ -117,8 +116,8 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python tests.Python tests for test_knight.test_knight_movement.test_knight_attack_hunter" />
         <item itemvalue="Python.main" />
+        <item itemvalue="Python tests.Python tests for test_knight.test_knight_movement.test_knight_attack_hunter" />
       </list>
     </recent_temporary>
   </component>

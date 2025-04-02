@@ -2,7 +2,7 @@ import tkinter as tk
 import requests
 from src.backend.models.simulation import Simulation
 
-API_URL = "http://127.0.0.1:5000"
+API_URL = "http://0.0.0.0:5000"
 
 class GameUI:
     def __init__(self, master, simulation):
@@ -49,29 +49,35 @@ class GameUI:
 
     def draw_entities(self):
         """Fetches game state and draws hunters, knights, and treasures."""
+        game_state = {}  # Ensure `game_state` is always initialized
+
         try:
             response = requests.get(f"{API_URL}/state")
+            response.raise_for_status()  # Raise an error for bad responses (4xx, 5xx)
             game_state = response.json()
-            cell_size = 25
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching game state: {e}")  # Log the actual error
 
-            for hunter in game_state["hunters"]:
-                x, y = hunter["position"]
-                self.canvas.create_oval(x * cell_size, y * cell_size, (x + 1) * cell_size, (y + 1) * cell_size,
-                                        fill="blue")
+        print("DEBUG: Game State ->", game_state)  # Ensure debug output always works
 
-            for knight in game_state["knights"]:
-                x, y = knight["position"]
-                self.canvas.create_rectangle(x * cell_size, y * cell_size, (x + 1) * cell_size, (y + 1) * cell_size,
-                                             fill="red")
+        if not game_state:  # If game_state is empty, do not attempt to draw entities
+            return
 
-            for treasure in game_state["treasures"]:
-                x, y = treasure["position"]
-                self.canvas.create_oval(x * cell_size, y * cell_size, (x + 1) * cell_size, (y + 1) * cell_size,
-                                        fill="gold")
-        except requests.exceptions.RequestException:
-            print("Error fetching game state.")
+        cell_size = 25
+        self.canvas.delete("all")  # Clear previous drawings
 
-        print("DEBUG: Game State ->", game_state)  # Check full response
+        for hunter in game_state.get("hunters", []):
+            x, y = hunter["position"]
+            self.canvas.create_oval(x * cell_size, y * cell_size, (x + 1) * cell_size, (y + 1) * cell_size, fill="blue")
+
+        for knight in game_state.get("knights", []):
+            x, y = knight["position"]
+            self.canvas.create_rectangle(x * cell_size, y * cell_size, (x + 1) * cell_size, (y + 1) * cell_size,
+                                         fill="red")
+
+        for treasure in game_state.get("treasures", []):
+            x, y = treasure["position"]
+            self.canvas.create_oval(x * cell_size, y * cell_size, (x + 1) * cell_size, (y + 1) * cell_size, fill="gold")
 
     def update_status(self):
         """Updates the status panel with the latest game state."""
@@ -99,9 +105,14 @@ class GameUI:
 
     def fetch_game_state(self):
         try:
-            response = requests.get(f"{API_URL}/state")
-            response.raise_for_status()  # Raise an error if request fails
+            response = requests.get(f"{API_URL}/state", timeout=5)  # Set a timeout to avoid hanging
+            response.raise_for_status()  # Raise error if HTTP request failed
+            print("DEBUG: API Response ->", response.json())  # Log response
             return response.json()
+        except requests.exceptions.ConnectionError:
+            print("ERROR: Could not connect to the API. Is the server running?")
+        except requests.exceptions.Timeout:
+            print("ERROR: API request timed out.")
         except requests.exceptions.RequestException as e:
-            print(f"Error fetching game state: {e}")  # More detailed error
-            return None
+            print(f"ERROR: {e}")
+        return None
