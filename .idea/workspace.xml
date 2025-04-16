@@ -7,7 +7,11 @@
     <list default="true" id="9beab333-fed9-4b17-b969-8a2a53429ad7" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/backend/models/grid.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/backend/models/grid.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/backend/models/hideout.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/backend/models/hideout.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/backend/models/hunter.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/backend/models/hunter.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/backend/models/knight.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/backend/models/knight.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/backend/models/simulation.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/backend/models/simulation.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/backend/models/treasure.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/backend/models/treasure.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/front_end/ui.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/front_end/ui.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />

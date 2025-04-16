@@ -2,7 +2,7 @@ import tkinter as tk
 import requests
 from src.backend.models.simulation import Simulation
 
-API_URL = "http://0.0.0.0:5000"
+API_URL = "http://192.168.0.116"
 
 class GameUI:
     def __init__(self, master, simulation):

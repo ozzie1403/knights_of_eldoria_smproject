@@ -1,66 +1,54 @@
+# src/backend/models/grid.py
+
 import random
 from enum import Enum
 from typing import Optional
-
-class TreasureType(Enum):
-    BRONZE = 3  # Increases wealth by 3%
-    SILVER = 7  # Increases wealth by 7%
-    GOLD = 13  # Increases wealth by 13%
-
-class Treasure:
-    def __init__(self, treasure_type: TreasureType, position: tuple[int, int]):
-        """Initializes a treasure with a type and position on the grid."""
-        self.treasure_type = treasure_type
-        self.value = treasure_type.value  # Percentage value increase
-        self.position = position
-
-    def decay(self):
-        """Treasure loses 0.1% of its value per step."""
-        self.value = max(0, self.value - 0.1)
-
-    def is_depleted(self) -> bool:
-        """Returns True if the treasure has lost all its value."""
-        return self.value <= 0
+from src.backend.models.treasure import Treasure, TreasureType
 
 
 class Grid:
     def __init__(self, size: int = 20):
         """Initializes a grid with the given size."""
         self.size = size
-        self.cells = [[[] for _ in range(size)] for _ in range(size)]  # Store lists, not single objects
+        self.cells = [[[] for _ in range(size)] for _ in range(size)]  # List of treasures
 
     def wrap_position(self, x: int, y: int) -> tuple[int, int]:
-        """Ensures grid wraps around edges."""
+        """Ensures the grid wraps around the edges."""
         return x % self.size, y % self.size
 
-    def place_treasure(self, treasure: Treasure = None, count: int = 10):
+    def place_treasure(self, treasure: Optional[Treasure] = None, count: int = 10):
+        """Places treasures on the grid, randomly or at given location."""
         if treasure:
             x, y = treasure.position
-            self.cells[x][y].append(treasure)  # Store as list
+            self.cells[x][y].append(treasure)
         else:
             for _ in range(count):
-                x, y = random.randint(0, self.size - 1), random.randint(0, self.size - 1)
-                treasure_type = random.choice(list(TreasureType))
-                self.cells[x][y].append(Treasure(treasure_type, (x, y)))  # Store as list
+                x = random.randint(0, self.size - 1)
+                y = random.randint(0, self.size - 1)
+                t_type = random.choice(list(TreasureType))
+                self.cells[x][y].append(Treasure(t_type, (x, y)))
 
     def get_treasure_at(self, x: int, y: int) -> list[Treasure]:
-        """Returns a list of treasures at the given position."""
+        """Returns list of treasures at (x, y), if any."""
         if 0 <= x < self.size and 0 <= y < self.size:
-            return self.cells[x][y]  # Now returns a list
+            return [t for t in self.cells[x][y] if not t.is_depleted()]
         return []
 
+    def remove_treasure_at(self, x: int, y: int, treasure: Treasure):
+        """Removes a specific treasure object from (x, y)."""
+        if treasure in self.cells[x][y]:
+            self.cells[x][y].remove(treasure)
+
     def update_treasures(self):
-        """Decays all treasures and removes depleted ones."""
+        """Decay and cleanup depleted treasures."""
         for x in range(self.size):
             for y in range(self.size):
-                treasure = self.get_treasure_at(x, y)
-                if treasure:
+                for treasure in self.cells[x][y][:]:  # Copy to avoid iteration issues
                     treasure.decay()
                     if treasure.is_depleted():
-                        self.cells[x][y] = None
+                        self.cells[x][y].remove(treasure)
 
     def is_within_bounds(self, x: int, y: int) -> bool:
-        """Checks if the given (x, y) position is within the grid boundaries."""
         return 0 <= x < self.size and 0 <= y < self.size
 
     def __repr__(self):
