@@ -1,70 +1,36 @@
-import json
-import os
-from flask import Flask, jsonify
+# src/middle_end/api/game_api.py
 
-# Initialize Flask app
+from flask import Flask, request, jsonify
+from src.backend.models.simulation import Simulation
+from src.backend.services.game_service import GameService
+from src.backend.services.movement_service import MovementService
+
 app = Flask(__name__)
 
-from src.backend.services.game_service import GameService
-from src.backend.models.simulation import Simulation
+simulation = Simulation()
+game_service = GameService(simulation)
 
-class GameAPI:
-    """Manages game state using file-based storage instead of Flask."""
+@app.route("/start", methods=["POST"])
+def start_game():
+    steps = request.json.get("steps", 1)
+    game_service.start_game(steps=steps)
+    return jsonify({"message": f"Game advanced by {steps} steps."})
 
-    def __init__(self):
-        self.simulation = Simulation(grid_size=20, num_hunters=3, num_knights=2, num_treasures=10, num_hideouts=2)
-        self.game_service = GameService(self.simulation)
-        self.state_file = "game_state.json"
+@app.route("/state", methods=["GET"])
+def get_state():
+    return jsonify(game_service.get_game_state())
 
-    def start_game(self, steps=100):
-        """Starts the game simulation and saves state."""
-        self.game_service.start_game(steps)
-        self.save_state()
+@app.route("/reset", methods=["POST"])
+def reset_game():
+    game_service.reset_game()
+    return jsonify({"message": "Game reset."})
 
-    def get_game_state(self):
-        """Returns the current game state."""
-        return self.game_service.get_game_state()
+@app.route("/move", methods=["POST"])
+def move_hunter():
+    direction = request.json.get("direction")
+    if simulation.hunters:
+        MovementService.move_hunter(simulation.hunters[0], direction, simulation.grid)
+    return jsonify({"message": f"Hunter moved {direction}."})
 
-    def reset_game(self):
-        """Resets the game and saves the new state."""
-        self.simulation = Simulation(grid_size=20, num_hunters=3, num_knights=2, num_treasures=10, num_hideouts=2)
-        self.game_service = GameService(self.simulation)
-        self.save_state()
-
-    def save_state(self):
-        """Saves the game state to a file."""
-        with open(self.state_file, "w") as f:
-            json.dump(self.get_game_state(), f)
-
-    def load_state(self):
-        """Loads the game state from a file if it exists."""
-        if os.path.exists(self.state_file):
-            with open(self.state_file, "r") as f:
-                return json.load(f)
-        return None
-
-# ✅ Instantiate the game API globally
-game_api = GameAPI()
-
-@app.route('/', methods=['GET'])
-def home():
-    """Home route to confirm API is running."""
-    return jsonify({"message": "Welcome to the Game API", "endpoints": ["/state"]})
-
-@app.route('/state', methods=['GET'])
-def fetch_game_state():
-    """Flask route to fetch game state."""
-    try:
-        state = game_api.get_game_state()
-        return jsonify({"status": "success", "game_state": state})
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-def get_game_state():
-    global game_state
-    if "hunters" not in game_state:  # Ensure key exists
-        game_state["hunters"] = []   # Set to empty list if missing
-    return jsonify(game_state)
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     app.run(debug=True)
