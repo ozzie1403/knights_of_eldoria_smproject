@@ -1,12 +1,6 @@
 # src/backend/models/treasure.py
 
-from enum import Enum
-
-class TreasureType(Enum):
-    BRONZE = 3   # Adds 3% wealth
-    SILVER = 7   # Adds 7% wealth
-    GOLD = 13    # Adds 13% wealth
-
+from src.backend.models.entities import TreasureType
 
 class Treasure:
     def __init__(self, treasure_type: TreasureType, position: tuple[int, int]):

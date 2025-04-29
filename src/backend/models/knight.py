@@ -1,46 +1,41 @@
 # src/backend/models/knight.py
 
-import random
+from typing import Tuple
 from src.backend.models.grid import Grid
 
 class Knight:
-    def __init__(self, position: tuple[int, int], energy: float = 100.0):
+    def __init__(self, name: str, position: Tuple[int, int], skill: KnightSkill, energy: float = 100.0):
+        self.name = name
         self.position = position
+        self.skill = skill
         self.energy = energy
 
-    def move_towards(self, target: tuple[int, int], grid: Grid):
-        if self.energy <= 0:
-            return
-
-        x, y = self.position
-        tx, ty = target
-
-        if x < tx:
-            x += 1
-        elif x > tx:
-            x -= 1
-        if y < ty:
-            y += 1
-        elif y > ty:
-            y -= 1
-
-        self.position = grid.wrap_position(x, y)
-        self.energy = max(0, self.energy - 10)
-
-    def attack(self, hunter) -> bool:
+    def move_towards(self, target: Tuple[int, int], grid: Grid) -> bool:
         if self.energy <= 0:
             return False
-
-        if self.position == hunter.position:
-            if hunter.carrying_treasure:
-                hunter.drop_treasure()
-            hunter.stamina = max(0, hunter.stamina - 20)
-            self.energy = max(0, self.energy - 5)
-            return True
-        return False
+            
+        current_x, current_y = self.position
+        target_x, target_y = target
+        
+        # Calculate direction to move
+        dx = 1 if target_x > current_x else -1 if target_x < current_x else 0
+        dy = 1 if target_y > current_y else -1 if target_y < current_y else 0
+        
+        # Move in the direction that reduces distance the most
+        if abs(target_x - current_x) > abs(target_y - current_y):
+            new_x = current_x + dx
+            new_y = current_y
+        else:
+            new_x = current_x
+            new_y = current_y + dy
+            
+        # Update position and energy
+        self.position = grid.wrap_position(new_x, new_y)
+        self.energy = max(0, self.energy - 10)
+        return True
 
     def rest(self):
-        self.energy = min(100, self.energy + 1)
+        self.energy = min(100, self.energy + 5)
 
     def __repr__(self):
-        return f"Knight(Position: {self.position}, Energy: {self.energy})"
+        return f"Knight({self.name}, Position: {self.position}, Energy: {self.energy})"
