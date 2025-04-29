@@ -5,22 +5,33 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="9beab333-fed9-4b17-b969-8a2a53429ad7" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/src/backend/models/entities.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/backend/models/grid.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/backend/models/grid.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/backend/models/hideout.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/backend/models/hideout.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/backend/models/hunter.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/backend/models/hunter.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/backend/models/knight.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/backend/models/knight.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/backend/models/simulation.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/backend/models/simulation.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/backend/models/treasure.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/backend/models/treasure.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/backend/services/ai_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/backend/services/ai_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/backend/services/game_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/backend/services/game_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/backend/services/movement_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/backend/services/movement_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/backend/models/dragon.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/backend/models/entities.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/backend/models/grid.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/backend/models/hideout.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/backend/models/hunter.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/backend/models/knight.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/backend/models/simulation.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/backend/models/treasure.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/backend/services/ai_service.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/backend/services/game_service.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/backend/services/movement_service.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/core/entities/base.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/core/entities/dragon.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/core/entities/hideout.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/core/entities/hunter.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/core/entities/knight.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/core/entities/position.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/core/entities/treasure.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/core/grid.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/core/grid.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/core/hideout.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/core/hideout.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/core/hunter.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/core/hunter.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/core/simulation.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/core/simulation.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/core/treasure.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/core/treasure.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/front_end/ui.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/front_end/ui.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/middle_end/api/game_api.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/middle_end/controllers/game_controller.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/ui/game_ui.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

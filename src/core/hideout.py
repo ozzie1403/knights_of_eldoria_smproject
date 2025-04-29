@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
 from typing import List
-from .position import Position
-from .treasure import Treasure
-from .hunter import Hunter
+from src.core.position import Position
+from src.core.treasure import Treasure
+from src.core.hunter import Hunter
 
 @dataclass
 class Hideout:

@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 import time
 from typing import Dict, Any
-from src.backend.models.simulation import Simulation
+from src.core.simulation import Simulation
 
 class GameUI:
     def __init__(self, root: tk.Tk, simulation: Simulation):

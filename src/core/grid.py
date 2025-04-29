@@ -1,13 +1,12 @@
 from typing import List, Dict, Optional, Set, Any
 import random
-from src.core.entities.position import Position
-from src.core.entities.base import Entity
-from src.core.entities.treasure import Treasure
-from src.core.entities.hunter import Hunter
-from src.core.entities.knight import Knight
-from src.core.entities.hideout import Hideout
+from src.core.position import Position
+from src.core.treasure import Treasure
+from src.core.hunter import Hunter
+from src.core.hideout import Hideout
 from src.core.enums import EntityType, TreasureType, HunterSkill
 from dataclasses import dataclass
+from src.core.knight import Knight
 
 @dataclass
 class Position:
@@ -44,14 +43,16 @@ class Grid:
             return False
         self.entities[pos] = entity
         entity.position = pos
-        
-        if hasattr(entity, 'treasure_type'):
+
+        if isinstance(entity, Treasure):
             self.treasures.append(entity)
-        elif hasattr(entity, 'stamina'):
+        elif isinstance(entity, Hunter):
             self.hunters.append(entity)
-        elif hasattr(entity, 'max_hunters'):
+        elif isinstance(entity, Knight):
+            self.knights.append(entity)
+        elif isinstance(entity, Hideout):
             self.hideouts.append(entity)
-        
+
         return True
 
     def remove_entity(self, pos: Position) -> None:
@@ -59,12 +60,18 @@ class Grid:
         wrapped_pos = self.wrap_position(pos)
         if wrapped_pos in self.entities:
             entity = self.entities.pop(wrapped_pos)
-            if hasattr(entity, 'treasure_type'):
-                self.treasures.remove(entity)
-            elif hasattr(entity, 'stamina'):
-                self.hunters.remove(entity)
-            elif hasattr(entity, 'max_hunters'):
-                self.hideouts.remove(entity)
+            if isinstance(entity, Treasure):
+                if entity in self.treasures:
+                    self.treasures.remove(entity)
+            elif isinstance(entity, Hunter):
+                if entity in self.hunters:
+                    self.hunters.remove(entity)
+            elif isinstance(entity, Knight):
+                if entity in self.knights:
+                    self.knights.remove(entity)
+            elif isinstance(entity, Hideout):
+                if entity in self.hideouts:
+                    self.hideouts.remove(entity)
 
     def get_entity_at(self, pos: Position) -> Optional[Any]:
         """Get the entity at a position."""

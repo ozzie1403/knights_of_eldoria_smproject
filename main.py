@@ -1,5 +1,5 @@
 import tkinter as tk
-from src.backend.models.simulation import Simulation
+from src.core.simulation import Simulation
 from src.front_end.ui import GameUI
 
 

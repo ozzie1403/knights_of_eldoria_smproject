@@ -1,6 +1,6 @@
 from enum import Enum
 from dataclasses import dataclass
-from .position import Position
+from src.core.position import Position
 
 class TreasureType(Enum):
     BRONZE = 3.0  # 3% value
