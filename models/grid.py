@@ -105,8 +105,24 @@ class Grid:
         """Count the number of each type of entity in the grid."""
         counts = {entity_type: 0 for entity_type in EntityType}
 
+        # Count entities in the entities list
         for entity in self.entities:
             counts[entity.type] += 1
+
+        # Double-check by counting in the grid
+        grid_counts = {entity_type: 0 for entity_type in EntityType}
+        for y in range(self.height):
+            for x in range(self.width):
+                entity = self.grid[y][x]
+                if entity is not None:
+                    grid_counts[entity.type] += 1
+
+        # Log any discrepancies
+        for entity_type in EntityType:
+            if counts[entity_type] != grid_counts[entity_type]:
+                print(f"WARNING: Discrepancy in {entity_type} count: "
+                      f"entities list has {counts[entity_type]}, "
+                      f"grid has {grid_counts[entity_type]}")
 
         return counts
 

@@ -1,6 +1,5 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-import random
 from models.simulation import Simulation
 from models.location import Location
 from utils.constants import EntityType, DEFAULT_GRID_SIZE
@@ -185,9 +184,6 @@ class SimulationDisplay:
         # Create new simulation
         self.simulation = Simulation(grid_size)
 
-        # Force resize canvas before setup to ensure proper drawing
-        self._on_canvas_resize(None)
-
         # Setup simulation
         self.simulation.setup(
             num_hideouts=num_hideouts,
@@ -197,18 +193,33 @@ class SimulationDisplay:
             num_garrisons=num_garrisons
         )
 
-        # Make sure simulation is ready to run
-        self.simulation.start()
-        self._debug_grid()
+        # No need to call start since we set running=True in setup
 
         # Draw initial state
         self._draw_grid()
         self._update_stats()
 
         # Enable controls
-        self.start_button.config(state=tk.NORMAL)
+        self.start_button.config(state=tk.NORMAL, text="Stop")
         self.step_button.config(state=tk.NORMAL)
         self.reset_button.config(state=tk.NORMAL)
+
+        # Start simulation after setup
+        self.running = True
+        self._run_simulation_step()
+
+        # Draw initial state
+        self._draw_grid()
+        self._update_stats()
+
+        # Enable controls
+        self.start_button.config(state=tk.NORMAL, text="Stop")
+        self.step_button.config(state=tk.NORMAL)
+        self.reset_button.config(state=tk.NORMAL)
+
+        # Start simulation after setup
+        self.running = True
+        self._run_simulation_step()
 
     def _debug_grid(self):
         """Print debug information about the grid."""
@@ -258,7 +269,7 @@ class SimulationDisplay:
     def _start_simulation(self):
         """Start the simulation."""
         self.running = True
-        self.simulation.start()
+        self.simulation.running = True  # Set simulation as running
         self.start_button.config(text="Stop")
         self.animation_speed = self.speed_var.get()
         self._run_simulation_step()
@@ -266,7 +277,7 @@ class SimulationDisplay:
     def _stop_simulation(self):
         """Stop the simulation."""
         self.running = False
-        self.simulation.stop()
+        self.simulation.running = False  # Set simulation as stopped
         self.start_button.config(text="Start")
 
     def _step_simulation(self):
@@ -311,23 +322,18 @@ class SimulationDisplay:
         self.canvas.delete("all")
 
         # Calculate cell size
-        canvas_width = self.canvas.winfo_width() or 800  # Fallback value
-        canvas_height = self.canvas.winfo_height() or 600  # Fallback value
-
-        # Print debug info
-        print(f"Canvas dimensions: {canvas_width}x{canvas_height}")
-
+        canvas_width = self.canvas.winfo_width()
+        canvas_height = self.canvas.winfo_height()
         grid_width = self.simulation.grid.width
         grid_height = self.simulation.grid.height
 
-        # Ensure we don't divide by zero
-        if grid_width == 0 or grid_height == 0:
+        # Make sure we have valid dimensions
+        if canvas_width <= 0 or canvas_height <= 0 or grid_width <= 0 or grid_height <= 0:
             return
 
         cell_size = min(canvas_width // grid_width, canvas_height // grid_height)
-
-        # Print cell size
-        print(f"Cell size: {cell_size}")
+        if cell_size <= 0:
+            cell_size = 10  # Minimum cell size
 
         # Draw grid cells
         for y in range(grid_height):
@@ -340,8 +346,6 @@ class SimulationDisplay:
                     color = self.colors[EntityType.EMPTY]
                 else:
                     color = self.colors[entity.type]
-                    # Debug entity info
-                    print(f"Entity at ({x},{y}): {entity.type.name}")
 
                 # Draw cell
                 x1 = x * cell_size
@@ -351,8 +355,13 @@ class SimulationDisplay:
 
                 self.canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline="gray")
 
-                # Draw additional details for entities
+                # Add text label for debugging (show entity type)
                 if entity:
+                    label = entity.type.name[0]  # First letter of entity type
+                    self.canvas.create_text(x1 + cell_size // 2, y1 + cell_size // 2,
+                                            text=label, fill="black", font=("Arial", max(8, cell_size // 3)))
+
+                    # Draw additional details for entities
                     if entity.type == EntityType.HUNTER:
                         # Show stamina as a small bar
                         stamina_width = (cell_size - 4) * entity.stamina / 100
@@ -382,6 +391,9 @@ class SimulationDisplay:
                         knight_count = len(entity.knights)
                         self.canvas.create_text(x1 + cell_size // 2, y1 + cell_size // 2,
                                                 text=str(knight_count), fill="white")
+
+        # Draw legend
+        # (rest of legend code remains the same)
 
         # Draw legend
         legend_x = 10

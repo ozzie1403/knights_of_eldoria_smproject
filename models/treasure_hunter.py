@@ -8,6 +8,8 @@ from ai.decision_making import decide_hunter_action
 from ai.pathfinding import get_next_move
 import random
 
+from utils.helpers import calculate_wrapped_distance
+
 
 class TreasureHunter(Entity):
     """Represents a treasure hunter in Eldoria."""
@@ -19,7 +21,7 @@ class TreasureHunter(Entity):
         self.carrying_treasure = None
         self.carrying_treasure_value = 0.0
         self.knowledge = KnowledgeBase()
-        self.in_hideout = None
+        self.in_hideout = None  # This will be set when added to a hideout
         self.resting = False
         self.collapse_countdown = HUNTER_COLLAPSE_COUNTDOWN
         self.critical_stamina = HUNTER_CRITICAL_STAMINA
@@ -28,6 +30,8 @@ class TreasureHunter(Entity):
         self.scan_radius = 3
         if skill == HunterSkill.NAVIGATION:
             self.scan_radius = 4  # Better at scanning
+
+        print(f"Created hunter with skill {skill} at {location}")
 
     def update(self, grid):
         """Update hunter state and behavior."""
@@ -51,51 +55,134 @@ class TreasureHunter(Entity):
         # Scan surroundings for entities
         self._scan_surroundings(grid)
 
-        # Use AI to decide next action
-        action, target = decide_hunter_action(self, grid)
+        # If stamina is critically low, try to find a hideout to rest
+        if self.stamina <= self.critical_stamina:
+            if self.known_hideout_locations:
+                # Find nearest hideout
+                nearest = None
+                min_distance = float('inf')
 
-        if action == "rest":
-            if self.in_hideout:
-                self.resting = True
-            elif target:
-                self._move_towards(grid, target)
-                # Check if we've reached the hideout
-                if self.location == target:
-                    entity = grid.get_entity_at(target)
+                for hideout_loc in self.known_hideout_locations:
+                    # Verify it's still a hideout
+                    entity = grid.get_entity_at(hideout_loc)
+                    if not entity or entity.type != EntityType.HIDEOUT:
+                        continue
+
+                    distance = calculate_wrapped_distance(
+                        self.location.x, self.location.y,
+                        hideout_loc.x, hideout_loc.y,
+                        grid.width, grid.height
+                    )
+
+                    if distance < min_distance:
+                        min_distance = distance
+                        nearest = hideout_loc
+
+                if nearest:
+                    # Move towards hideout
+                    self._move_towards(grid, nearest)
+
+                    # Check if we've reached the hideout
+                    entity = grid.get_entity_at(self.location)
                     if entity and entity.type == EntityType.HIDEOUT:
-                        self.in_hideout = entity
-                        entity.add_hunter(self)
                         self.resting = True
+                        if self.in_hideout is None:
+                            entity.add_hunter(self)
+                        return
+                else:
+                    # No valid hideout known, just rest in place
+                    self.resting = True
+                    return
+            else:
+                # No hideout known, just rest in place
+                self.resting = True
+                return
 
-        elif action == "deposit" and target:
-            self._move_towards(grid, target)
-            # Check if we've reached the hideout
-            if self.location == target:
-                entity = grid.get_entity_at(target)
-                if entity and entity.type == EntityType.HIDEOUT:
-                    # Deposit treasure
-                    entity.store_treasure(self.carrying_treasure_value)
-                    self.carrying_treasure_value = 0
-                    self.carrying_treasure = None
-                    # Join the hideout
-                    if self.in_hideout is None:
-                        entity.add_hunter(self)
+        # If carrying treasure, try to deposit it at a hideout
+        if self.carrying_treasure_value > 0:
+            if self.known_hideout_locations:
+                # Find nearest hideout
+                nearest = None
+                min_distance = float('inf')
 
-        elif action == "collect" and target:
-            self._move_towards(grid, target)
-            # Check if we've reached the treasure
-            if self.location == target:
-                entity = grid.get_entity_at(target)
-                if entity and entity.type == EntityType.TREASURE:
-                    # Collect the treasure
-                    self.carrying_treasure = entity
-                    self.carrying_treasure_value = entity.value
-                    grid.remove_entity(entity)
-                    # Remove from known locations
-                    self.knowledge.remove_treasure_location(target)
+                for hideout_loc in self.known_hideout_locations:
+                    # Verify it's still a hideout
+                    entity = grid.get_entity_at(hideout_loc)
+                    if not entity or entity.type != EntityType.HIDEOUT:
+                        continue
 
-        elif action == "explore":
-            self._explore_randomly(grid)
+                    distance = calculate_wrapped_distance(
+                        self.location.x, self.location.y,
+                        hideout_loc.x, hideout_loc.y,
+                        grid.width, grid.height
+                    )
+
+                    if distance < min_distance:
+                        min_distance = distance
+                        nearest = hideout_loc
+
+                if nearest:
+                    # Move towards hideout
+                    self._move_towards(grid, nearest)
+
+                    # Check if we've reached the hideout
+                    entity = grid.get_entity_at(self.location)
+                    if entity and entity.type == EntityType.HIDEOUT:
+                        # Deposit treasure
+                        entity.store_treasure(self.carrying_treasure_value)
+                        self.carrying_treasure_value = 0
+                        self.carrying_treasure = None
+                        return
+            else:
+                # No hideout known, explore to find one
+                self._explore_randomly(grid)
+
+        # If not carrying treasure, look for some
+        else:
+            # Check if we know of any treasure locations
+            if self.known_treasure_locations:
+                # Find nearest treasure
+                nearest = None
+                min_distance = float('inf')
+
+                for treasure_loc in list(self.known_treasure_locations):  # Create a copy to allow modification
+                    # Verify it's still a treasure
+                    entity = grid.get_entity_at(treasure_loc)
+                    if not entity or entity.type != EntityType.TREASURE:
+                        self.known_treasure_locations.remove(treasure_loc)
+                        continue
+
+                    distance = calculate_wrapped_distance(
+                        self.location.x, self.location.y,
+                        treasure_loc.x, treasure_loc.y,
+                        grid.width, grid.height
+                    )
+
+                    if distance < min_distance:
+                        min_distance = distance
+                        nearest = treasure_loc
+
+                if nearest:
+                    # Move towards treasure
+                    self._move_towards(grid, nearest)
+
+                    # Check if we've reached the treasure
+                    entity = grid.get_entity_at(self.location)
+                    if entity and entity.type == EntityType.TREASURE:
+                        # Collect the treasure
+                        self.carrying_treasure = entity
+                        self.carrying_treasure_value = entity.value
+                        grid.remove_entity(entity)
+                        # Remove from known locations
+                        if self.location in self.known_treasure_locations:
+                            self.known_treasure_locations.remove(self.location)
+                        return
+                else:
+                    # No valid treasure known, explore
+                    self._explore_randomly(grid)
+            else:
+                # No treasure known, explore
+                self._explore_randomly(grid)
 
     def _scan_surroundings(self, grid):
         """Scan nearby cells for entities."""
@@ -167,9 +254,19 @@ class TreasureHunter(Entity):
     def create_random(grid, hideouts, count_per_hideout: int):
         """Create random hunters at hideouts."""
         hunters = []
+
+        # Ensure we have hideouts
+        if not hideouts:
+            print("No hideouts available to place hunters")
+            return hunters
+
+        print(f"Creating hunters at {len(hideouts)} hideouts, {count_per_hideout} per hideout")
+
         for hideout in hideouts:
-            for _ in range(count_per_hideout):
+            for i in range(count_per_hideout):
+                # Make sure we don't exceed hideout capacity
                 if len(hideout.hunters) >= hideout.max_capacity:
+                    print(f"Hideout at {hideout.location} is at max capacity")
                     continue
 
                 # Choose random skill
@@ -184,11 +281,14 @@ class TreasureHunter(Entity):
                 # Add knowledge of this hideout
                 hunter.knowledge.add_hideout_location(hideout.location)
 
-                # Add hunter to hideout
-                hideout.add_hunter(hunter)
-
-                # Place on grid
+                # Try to place on grid first
                 if grid.place_entity(hunter):
+                    # Only add to hideout if placement successful
+                    hideout.add_hunter(hunter)
                     hunters.append(hunter)
+                    print(f"Successfully created hunter at {hunter.location}, skill: {skill}")
+                else:
+                    print(f"Failed to place hunter at {hunter.location}")
 
+        print(f"Created {len(hunters)} hunters total")
         return hunters

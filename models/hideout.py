@@ -78,14 +78,20 @@ class Hideout(Entity):
                 
                 if grid.place_entity(new_hunter):
                     self.hunters.append(new_hunter)
-    
+
     def add_hunter(self, hunter):
         """Add a hunter to this hideout if there's space."""
         if len(self.hunters) < self.max_capacity:
-            self.hunters.append(hunter)
-            hunter.in_hideout = self
-            return True
-        return False
+            # Make sure hunter isn't already in this hideout
+            if hunter not in self.hunters:
+                self.hunters.append(hunter)
+                hunter.in_hideout = self
+                print(f"Added hunter to hideout at {self.location}, now contains {len(self.hunters)} hunters")
+                return True
+            return True  # Already in this hideout
+        else:
+            print(f"Hideout at {self.location} is at max capacity ({self.max_capacity})")
+            return False
     
     def remove_hunter(self, hunter):
         """Remove a hunter from this hideout."""
