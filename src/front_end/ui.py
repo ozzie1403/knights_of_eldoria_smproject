@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 import time
-from typing import Dict, Any
+from typing import Dict, Any, List, Tuple
 from src.core.simulation import Simulation
 
 class GameUI:
@@ -9,143 +9,226 @@ class GameUI:
         self.root = root
         self.simulation = simulation
         self.cell_size = 30
+        self.running = False
         self.colors = {
-            'EMPTY': 'white',
             'TREASURE': {
                 'BRONZE': '#CD7F32',  # Bronze color
                 'SILVER': '#C0C0C0',  # Silver color
                 'GOLD': '#FFD700'     # Gold color
             },
             'HUNTER': {
-                'NAVIGATION': '#4169E1',  # Royal Blue
-                'ENDURANCE': '#32CD32',   # Lime Green
-                'STEALTH': '#4B0082'      # Indigo
+                'SCOUT': '#00FF00',   # Green
+                'ENDURANCE': '#0000FF', # Blue
+                'STRENGTH': '#FF0000'  # Red
             },
-            'KNIGHT': '#FF0000',          # Red
-            'HIDEOUT': '#8B4513'          # Saddle Brown
+            'KNIGHT': '#808080',      # Gray
+            'HIDEOUT': '#8B4513',     # Brown
+            'GARRISON': '#000000'     # Black
         }
-
         self.setup_ui()
-        self.running = False
 
     def setup_ui(self) -> None:
         # Main frame
         self.main_frame = ttk.Frame(self.root, padding="10")
-        self.main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.main_frame.grid(row=0, column=0, sticky="nsew")
 
-        # Canvas for grid
+        # Game canvas
         self.canvas = tk.Canvas(
             self.main_frame,
             width=self.simulation.grid.size * self.cell_size,
-            height=self.simulation.grid.size * self.cell_size
+            height=self.simulation.grid.size * self.cell_size,
+            bg="white"
         )
-        self.canvas.grid(row=0, column=0, columnspan=4, padx=5, pady=5)
-
-        # Control buttons
-        self.control_frame = ttk.Frame(self.main_frame)
-        self.control_frame.grid(row=1, column=0, columnspan=4, pady=5)
-
-        self.start_button = ttk.Button(self.control_frame, text="Start", command=self.start_simulation)
-        self.start_button.grid(row=0, column=0, padx=5)
-
-        self.stop_button = ttk.Button(self.control_frame, text="Stop", command=self.stop_simulation)
-        self.stop_button.grid(row=0, column=1, padx=5)
-
-        self.step_button = ttk.Button(self.control_frame, text="Step", command=self.step_simulation)
-        self.step_button.grid(row=0, column=2, padx=5)
-
-        # Status frame
-        self.status_frame = ttk.Frame(self.main_frame)
-        self.status_frame.grid(row=2, column=0, columnspan=4, pady=5)
-
-        self.step_label = ttk.Label(self.status_frame, text="Step: 0")
-        self.step_label.grid(row=0, column=0, padx=5)
-
-        self.treasure_label = ttk.Label(self.status_frame, text="Treasure Collected: 0")
-        self.treasure_label.grid(row=0, column=1, padx=5)
+        self.canvas.grid(row=0, column=0, padx=5, pady=5)
 
         # Legend frame
-        self.legend_frame = ttk.LabelFrame(self.main_frame, text="Legend", padding="5")
-        self.legend_frame.grid(row=3, column=0, columnspan=4, pady=5, sticky=(tk.W, tk.E))
+        self.legend_frame = ttk.LabelFrame(self.main_frame, text="Legend", padding="10")
+        self.legend_frame.grid(row=0, column=1, padx=5, pady=5, sticky="nsew")
 
-        # Column 1: Treasures
-        treasure_frame = ttk.Frame(self.legend_frame)
-        treasure_frame.grid(row=0, column=0, padx=10, sticky=tk.W)
-        ttk.Label(treasure_frame, text="Treasures", font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky=tk.W, pady=2)
-        ttk.Label(treasure_frame, text="• Bronze (Low Value)").grid(row=1, column=0, sticky=tk.W)
-        ttk.Label(treasure_frame, text="• Silver (Medium Value)").grid(row=2, column=0, sticky=tk.W)
-        ttk.Label(treasure_frame, text="• Gold (High Value)").grid(row=3, column=0, sticky=tk.W)
+        # Add legend items
+        self._add_legend_item("Treasures", [
+            ("Bronze", self.colors['TREASURE']['BRONZE']),
+            ("Silver", self.colors['TREASURE']['SILVER']),
+            ("Gold", self.colors['TREASURE']['GOLD'])
+        ])
 
-        # Column 2: Hunters
-        hunter_frame = ttk.Frame(self.legend_frame)
-        hunter_frame.grid(row=0, column=1, padx=10, sticky=tk.W)
-        ttk.Label(hunter_frame, text="Hunters", font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky=tk.W, pady=2)
-        ttk.Label(hunter_frame, text="• Navigation (Blue)").grid(row=1, column=0, sticky=tk.W)
-        ttk.Label(hunter_frame, text="• Endurance (Green)").grid(row=2, column=0, sticky=tk.W)
-        ttk.Label(hunter_frame, text="• Stealth (Indigo)").grid(row=3, column=0, sticky=tk.W)
-        ttk.Label(hunter_frame, text="Green bar = Stamina").grid(row=4, column=0, sticky=tk.W)
+        self._add_legend_item("Hunters", [
+            ("Scout", self.colors['HUNTER']['SCOUT']),
+            ("Endurance", self.colors['HUNTER']['ENDURANCE']),
+            ("Strength", self.colors['HUNTER']['STRENGTH'])
+        ])
 
-        # Column 3: Knights
-        knight_frame = ttk.Frame(self.legend_frame)
-        knight_frame.grid(row=0, column=2, padx=10, sticky=tk.W)
-        ttk.Label(knight_frame, text="Knights", font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky=tk.W, pady=2)
-        ttk.Label(knight_frame, text="• Red - Patrol").grid(row=1, column=0, sticky=tk.W)
-        ttk.Label(knight_frame, text="• Capture hunters").grid(row=2, column=0, sticky=tk.W)
-        ttk.Label(knight_frame, text="Red bar = Energy").grid(row=3, column=0, sticky=tk.W)
+        self._add_legend_item("Other", [
+            ("Knight", self.colors['KNIGHT']),
+            ("Hideout", self.colors['HIDEOUT']),
+            ("Garrison", self.colors['GARRISON'])
+        ])
 
-        # Column 4: Hideouts
-        hideout_frame = ttk.Frame(self.legend_frame)
-        hideout_frame.grid(row=0, column=3, padx=10, sticky=tk.W)
-        ttk.Label(hideout_frame, text="Hideouts", font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky=tk.W, pady=2)
-        ttk.Label(hideout_frame, text="• Brown").grid(row=1, column=0, sticky=tk.W)
-        ttk.Label(hideout_frame, text="• Safe haven").grid(row=2, column=0, sticky=tk.W)
-        ttk.Label(hideout_frame, text="Number = Hunters").grid(row=3, column=0, sticky=tk.W)
+        # Controls frame
+        self.controls_frame = ttk.Frame(self.main_frame)
+        self.controls_frame.grid(row=1, column=0, columnspan=2, pady=5)
 
-        # Draw initial grid
-        self.draw_grid()
+        # Add control buttons
+        self.start_button = ttk.Button(self.controls_frame, text="Start", command=self.start_simulation)
+        self.start_button.grid(row=0, column=0, padx=5)
+
+        self.stop_button = ttk.Button(self.controls_frame, text="Stop", command=self.stop_simulation)
+        self.stop_button.grid(row=0, column=1, padx=5)
+
+        self.step_button = ttk.Button(self.controls_frame, text="Step", command=self.step_simulation)
+        self.step_button.grid(row=0, column=2, padx=5)
+
+        self.reset_button = ttk.Button(self.controls_frame, text="Reset", command=self.reset_simulation)
+        self.reset_button.grid(row=0, column=3, padx=5)
+
+        # Status label
+        self.status_label = ttk.Label(self.controls_frame, text="")
+        self.status_label.grid(row=0, column=4, padx=5)
+
+        # Configure grid weights
+        self.root.grid_rowconfigure(0, weight=1)
+        self.root.grid_columnconfigure(0, weight=1)
+        self.main_frame.grid_rowconfigure(0, weight=1)
+        self.main_frame.grid_columnconfigure(0, weight=1)
+
+    def _add_legend_item(self, title: str, items: List[Tuple[str, str]]) -> None:
+        """Add a group of legend items with a title."""
+        frame = ttk.Frame(self.legend_frame)
+        frame.pack(fill="x", pady=5)
+
+        title_label = ttk.Label(frame, text=title, font=("Arial", 10, "bold"))
+        title_label.pack(anchor="w")
+
+        for name, color in items:
+            item_frame = ttk.Frame(frame)
+            item_frame.pack(fill="x", pady=2)
+
+            color_box = tk.Canvas(item_frame, width=20, height=20, bg=color, highlightthickness=1)
+            color_box.pack(side="left", padx=5)
+
+            name_label = ttk.Label(item_frame, text=name)
+            name_label.pack(side="left", padx=5)
 
     def draw_grid(self) -> None:
         self.canvas.delete("all")
         state = self.simulation.get_state()
-
+        
         # Draw grid lines
-        for i in range(self.simulation.grid.size + 1):
+        cell_size = self.cell_size
+        for i in range(state['grid_size'] + 1):
             # Vertical lines
             self.canvas.create_line(
-                i * self.cell_size, 0,
-                i * self.cell_size, self.simulation.grid.size * self.cell_size
+                i * cell_size, 0,
+                i * cell_size, state['grid_size'] * cell_size,
+                fill="gray"
             )
             # Horizontal lines
             self.canvas.create_line(
-                0, i * self.cell_size,
-                self.simulation.grid.size * self.cell_size, i * self.cell_size
+                0, i * cell_size,
+                state['grid_size'] * cell_size, i * cell_size,
+                fill="gray"
             )
-
-        # Draw treasures
-        for x, y, treasure_type, _ in state['treasures']:
-            self.draw_cell(x, y, 'TREASURE', treasure_type)
-
-        # Draw hunters
-        for x, y, skill, stamina, _ in state['hunters']:
-            self.draw_cell(x, y, 'HUNTER', skill)
-            # Draw stamina indicator
-            self.draw_stamina_indicator(x, y, stamina)
-
-        # Draw knights
-        for x, y, energy, _ in state['knights']:
-            self.draw_cell(x, y, 'KNIGHT')
-            # Draw energy indicator
-            self.draw_energy_indicator(x, y, energy)
-
+        
+        # Draw entities
+        # Draw garrisons first (background)
+        for x, y, num_knights, cooldown in state['garrisons']:
+            self.canvas.create_rectangle(
+                x * cell_size, y * cell_size,
+                (x + 1) * cell_size, (y + 1) * cell_size,
+                fill="darkred",
+                outline="black"
+            )
+            # Draw number of knights
+            self.canvas.create_text(
+                (x + 0.5) * cell_size,
+                (y + 0.3) * cell_size,
+                text=f"K:{num_knights}",
+                fill="white"
+            )
+            # Draw cooldown
+            self.canvas.create_text(
+                (x + 0.5) * cell_size,
+                (y + 0.7) * cell_size,
+                text=f"C:{cooldown}",
+                fill="white"
+            )
+        
         # Draw hideouts
-        for x, y, hunter_count, _ in state['hideouts']:
-            self.draw_cell(x, y, 'HIDEOUT')
-            # Draw hunter count
-            self.draw_hunter_count(x, y, hunter_count)
-
-        # Update status labels
-        self.step_label.config(text=f"Step: {state['step_count']}")
-        self.treasure_label.config(text=f"Treasure Collected: {state['total_treasure_collected']}")
+        for x, y, num_hunters, num_treasures in state['hideouts']:
+            self.canvas.create_rectangle(
+                x * cell_size, y * cell_size,
+                (x + 1) * cell_size, (y + 1) * cell_size,
+                fill="brown",
+                outline="black"
+            )
+            # Draw number of hunters and treasures
+            self.canvas.create_text(
+                (x + 0.5) * cell_size,
+                (y + 0.3) * cell_size,
+                text=f"H:{num_hunters}",
+                fill="white"
+            )
+            self.canvas.create_text(
+                (x + 0.5) * cell_size,
+                (y + 0.7) * cell_size,
+                text=f"T:{num_treasures}",
+                fill="white"
+            )
+        
+        # Draw treasures
+        for x, y, treasure_type, value in state['treasures']:
+            color = {
+                "BRONZE": "brown",
+                "SILVER": "silver",
+                "GOLD": "gold"
+            }.get(treasure_type, "gray")
+            self.canvas.create_oval(
+                x * cell_size + 2, y * cell_size + 2,
+                (x + 1) * cell_size - 2, (y + 1) * cell_size - 2,
+                fill=color,
+                outline="black"
+            )
+            self.canvas.create_text(
+                (x + 0.5) * cell_size,
+                (y + 0.5) * cell_size,
+                text=f"{value:.1f}",
+                fill="black"
+            )
+        
+        # Draw hunters
+        for x, y, skill, stamina, is_collapsed in state['hunters']:
+            color = "red" if is_collapsed else "green"
+            self.canvas.create_oval(
+                x * cell_size + 2, y * cell_size + 2,
+                (x + 1) * cell_size - 2, (y + 1) * cell_size - 2,
+                fill=color,
+                outline="black"
+            )
+            self.canvas.create_text(
+                (x + 0.5) * cell_size,
+                (y + 0.5) * cell_size,
+                text=f"{skill[0]}:{stamina:.0f}",
+                fill="black"
+            )
+        
+        # Draw knights
+        for x, y, stamina, is_resting in state['knights']:
+            color = "blue" if is_resting else "darkblue"
+            self.canvas.create_rectangle(
+                x * cell_size + 2, y * cell_size + 2,
+                (x + 1) * cell_size - 2, (y + 1) * cell_size - 2,
+                fill=color,
+                outline="black"
+            )
+            self.canvas.create_text(
+                (x + 0.5) * cell_size,
+                (y + 0.5) * cell_size,
+                text=f"{stamina:.0f}",
+                fill="white"
+            )
+        
+        # Update legend
+        self.status_label.config(text=f"Step: {state['step_count']}\nTreasures: {len(state['treasures'])}\nHunters: {len(state['hunters'])}\nKnights: {len(state['knights'])}\nHideouts: {len(state['hideouts'])}\nGarrisons: {len(state['garrisons'])}\nTotal Treasure Collected: {state['total_treasure_collected']}")
 
     def draw_cell(self, x: int, y: int, entity_type: str, subtype: str = None) -> None:
         # Wrap coordinates around grid edges
@@ -213,3 +296,30 @@ class GameUI:
         ttk.Label(game_over, text="Game Over!").pack(pady=10)
         ttk.Label(game_over, text=f"Total Treasure Collected: {self.simulation.total_treasure_collected}").pack()
         ttk.Button(game_over, text="OK", command=game_over.destroy).pack(pady=10)
+
+    def reset_simulation(self) -> None:
+        """Reset the simulation to its initial state."""
+        # Stop the simulation if it's running
+        self.stop_simulation()
+        
+        # Store the initial parameters
+        grid_size = self.simulation.grid.size
+        num_hunters = len(self.simulation.hunters)
+        num_knights = len(self.simulation.knights)
+        num_treasures = len(self.simulation.treasures)
+        num_hideouts = len(self.simulation.hideouts)
+        
+        # Create a new simulation with the same parameters
+        self.simulation = Simulation(
+            grid_size=grid_size,
+            num_hunters=num_hunters,
+            num_knights=num_knights,
+            num_treasures=num_treasures,
+            num_hideouts=num_hideouts
+        )
+        
+        # Redraw the grid
+        self.draw_grid()
+        
+        # Update the status label
+        self.status_label.config(text="Simulation reset!")

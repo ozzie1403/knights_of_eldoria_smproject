@@ -14,7 +14,8 @@ def main():
         num_hunters=3,     # 3 hunters
         num_knights=2,     # 2 knights
         num_treasures=10,  # 10 treasures
-        num_hideouts=2     # 2 hideouts
+        num_hideouts=2,    # 2 hideouts
+        num_garrisons=2    # 2 garrisons
     )
 
     # Create and start the game UI

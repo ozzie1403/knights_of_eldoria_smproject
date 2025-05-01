@@ -1,26 +1,37 @@
-from enum import Enum
-from dataclasses import dataclass
-from src.core.position import Position
+from typing import Tuple, Optional
+from src.core.enums import EntityType, CellType, TreasureType
 
-class TreasureType(Enum):
-    BRONZE = 3.0  # 3% value
-    SILVER = 7.0  # 7% value
-    GOLD = 13.0   # 13% value
-
-@dataclass
 class Treasure:
-    position: Position
-    treasure_type: TreasureType
-    value: float = 100.0  # Initial value is 100%
-
+    def __init__(self, position: Tuple[int, int], treasure_type: TreasureType = TreasureType.BRONZE):
+        self.position = position
+        self.treasure_type = treasure_type
+        self.base_value = self._get_base_value()
+        self.current_value = self.base_value
+        self.decay_rate = 0.001  # 0.1% decay per step
+        self.cell_type = CellType.TREASURE
+        self.entity_type = EntityType.TREASURE
+        self.should_remove = False
+    
+    def _get_base_value(self) -> float:
+        """Get the base value based on treasure type."""
+        if self.treasure_type == TreasureType.BRONZE:
+            return 100.0
+        elif self.treasure_type == TreasureType.SILVER:
+            return 250.0
+        else:  # GOLD
+            return 500.0
+    
     def decay(self) -> None:
-        """Decay the treasure's value by 0.1% per tick."""
-        self.value = max(0.0, self.value - 0.1)
-
-    def is_depleted(self) -> bool:
-        """Check if the treasure is depleted (value <= 0%)."""
-        return self.value <= 0.0
-
-    def get_value_percentage(self) -> float:
-        """Get the current value as a percentage of the treasure type's base value."""
-        return self.value * self.treasure_type.value / 100.0 
+        """Reduce the treasure's value by decay rate."""
+        self.current_value *= (1 - self.decay_rate)
+        if self.current_value < 0.01:  # Remove if value becomes negligible
+            self.should_remove = True
+    
+    def update(self, grid) -> None:
+        """Update the treasure's state each simulation step."""
+        self.decay()
+        if self.should_remove:
+            grid.remove_entity(self.position)
+    
+    def __repr__(self) -> str:
+        return f"Treasure({self.position}, {self.treasure_type}, value={self.current_value:.2f})" 
