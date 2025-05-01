@@ -1,102 +1,126 @@
-from typing import List, Tuple, Dict, Set, Optional
 from models.location import Location
-from utils.helpers import calculate_wrapped_distance, get_move_direction
-from utils.constants import EntityType  # Add this import
+from utils.helpers import calculate_wrapped_distance
 import heapq
 
 
-def find_path_astar(start: Location, goal: Location, grid, width: int, height: int) -> List[Location]:
-    """A* pathfinding algorithm for finding the shortest path in a wrapping grid."""
-    # Create closed set for nodes already evaluated
-    closed_set = set()
+class AStarPathfinder:
+    """A* pathfinding algorithm implementation for grid-based movement with wrap-around edges."""
 
-    # Create open set for nodes to be evaluated, starting with start
-    open_set = []
-    heapq.heappush(open_set, (0, id(start), start))
+    def __init__(self, grid):
+        self.grid = grid
 
-    # For each node, which node it can most efficiently be reached from
-    came_from = {}
+    def find_path(self, start: Location, goal: Location, avoid_entity_types=None):
+        """
+        Find a path from start to goal using A* algorithm.
 
-    # For each node, the cost of getting from the start node to that node
-    g_score = {start: 0}
+        Args:
+            start: Starting location
+            goal: Goal location
+            avoid_entity_types: List of entity types to avoid in the path
 
-    # For each node, the total cost of getting from the start node to the goal
-    f_score = {start: calculate_wrapped_distance(start.x, start.y, goal.x, goal.y, width, height)}
+        Returns:
+            List of Locations representing the path (including start and goal)
+            or empty list if no path is found
+        """
+        if not avoid_entity_types:
+            avoid_entity_types = []
 
-    # While there are nodes to evaluate
-    while open_set:
-        # Get the node with the lowest f_score
-        _, _, current = heapq.heappop(open_set)
+        # If start and goal are the same, return immediately
+        if start.x == goal.x and start.y == goal.y:
+            return [start]
 
-        # If we've reached the goal, reconstruct the path
-        if current == goal:
-            path = []
-            while current in came_from:
-                path.append(current)
-                current = came_from[current]
-            path.reverse()
-            return path
+        # Initialize the open and closed sets
+        open_set = []
+        closed_set = set()
 
-        # Mark the current node as evaluated
-        closed_set.add(current)
+        # Dictionary to store the parent of each node
+        came_from = {}
 
-        # Check neighbors
-        for dx, dy in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
-            nx = (current.x + dx) % width
-            ny = (current.y + dy) % height
-            neighbor = Location(nx, ny)
+        # Dictionary to store g scores (cost from start to current node)
+        g_score = {self._hash_location(start): 0}
 
-            # Skip if neighbor is already evaluated
-            if neighbor in closed_set:
-                continue
+        # Dictionary to store f scores (g score + heuristic)
+        f_score = {self._hash_location(start): self._heuristic(start, goal)}
 
-            # Get entity at neighbor
-            entity = grid.get_entity_at(neighbor)
+        # Add start node to open set
+        heapq.heappush(open_set, (f_score[self._hash_location(start)], self._hash_location(start)))
 
-            # Skip if neighbor is occupied by something other than treasure, hideout or garrison
-            if entity is not None and entity.type not in [EntityType.TREASURE, EntityType.HIDEOUT, EntityType.GARRISON]:
-                continue
+        while open_set:
+            # Get the node with the lowest f score
+            current_hash = heapq.heappop(open_set)[1]
+            current = self._unhash_location(current_hash)
 
-            # Calculate tentative g_score
-            tentative_g_score = g_score.get(current, float('inf')) + 1
+            # If we've reached the goal, reconstruct the path
+            if current.x == goal.x and current.y == goal.y:
+                return self._reconstruct_path(came_from, current)
 
-            # If neighbor not in open set, add it
-            if neighbor not in [loc for _, _, loc in open_set]:
-                came_from[neighbor] = current
-                g_score[neighbor] = tentative_g_score
-                f_score[neighbor] = g_score[neighbor] + calculate_wrapped_distance(
-                    neighbor.x, neighbor.y, goal.x, goal.y, width, height
-                )
-                heapq.heappush(open_set, (f_score[neighbor], id(neighbor), neighbor))
-            elif tentative_g_score < g_score.get(neighbor, float('inf')):
-                # This is a better path to neighbor
-                came_from[neighbor] = current
-                g_score[neighbor] = tentative_g_score
-                f_score[neighbor] = g_score[neighbor] + calculate_wrapped_distance(
-                    neighbor.x, neighbor.y, goal.x, goal.y, width, height
-                )
+            # Add current to closed set
+            closed_set.add(current_hash)
 
-                # Update neighbor in open_set
-                for i, (f, _, loc) in enumerate(open_set):
-                    if loc == neighbor:
-                        open_set[i] = (f_score[neighbor], id(neighbor), neighbor)
-                        heapq.heapify(open_set)
-                        break
+            # Check all neighbors
+            for neighbor in self._get_neighbors(current):
+                neighbor_hash = self._hash_location(neighbor)
 
-    # No path found
-    return []
+                # Skip if neighbor is in closed set
+                if neighbor_hash in closed_set:
+                    continue
 
+                # Skip if neighbor contains an entity to avoid
+                entity = self.grid.get_entity_at(neighbor)
+                if entity and entity.type in avoid_entity_types:
+                    continue
 
-def get_next_move(current: Location, target: Location, grid, width: int, height: int) -> Optional[Location]:
-    """Get the next move towards a target location."""
-    # Use pathfinding if target is far
-    if calculate_wrapped_distance(current.x, current.y, target.x, target.y, width, height) > 3:
-        path = find_path_astar(current, target, grid, width, height)
-        if path:
-            return path[0]
+                # Calculate tentative g score
+                tentative_g_score = g_score[self._hash_location(current)] + 1
 
-    # Otherwise use simple direction
-    dx, dy = get_move_direction(current.x, current.y, target.x, target.y, width, height)
-    new_x = (current.x + dx) % width
-    new_y = (current.y + dy) % height
-    return Location(new_x, new_y)
+                # If neighbor is not in open set or has a better g score
+                if (neighbor_hash not in g_score) or (tentative_g_score < g_score[neighbor_hash]):
+                    # Update the path
+                    came_from[neighbor_hash] = current
+                    g_score[neighbor_hash] = tentative_g_score
+                    f_score[neighbor_hash] = tentative_g_score + self._heuristic(neighbor, goal)
+
+                    # Add to open set if not already there
+                    if neighbor_hash not in [item[1] for item in open_set]:
+                        heapq.heappush(open_set, (f_score[neighbor_hash], neighbor_hash))
+
+        # No path found
+        return []
+
+    def _get_neighbors(self, location: Location):
+        """Get all valid neighbors of a location, accounting for wrap-around."""
+        neighbors = []
+        directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]  # Up, right, down, left
+
+        for dx, dy in directions:
+            new_x = (location.x + dx) % self.grid.width
+            new_y = (location.y + dy) % self.grid.height
+            neighbors.append(Location(new_x, new_y))
+
+        return neighbors
+
+    def _heuristic(self, a: Location, b: Location):
+        """Calculate the heuristic (Manhattan distance with wrap-around)."""
+        return calculate_wrapped_distance(
+            a.x, a.y, b.x, b.y, self.grid.width, self.grid.height
+        )
+
+    def _hash_location(self, location: Location):
+        """Convert a location to a hashable value."""
+        return (location.x, location.y)
+
+    def _unhash_location(self, hash_value):
+        """Convert a hash back to a location."""
+        return Location(hash_value[0], hash_value[1])
+
+    def _reconstruct_path(self, came_from, current):
+        """Reconstruct the path from the start to the goal."""
+        path = [current]
+        current_hash = self._hash_location(current)
+
+        while current_hash in came_from:
+            current = came_from[current_hash]
+            current_hash = self._hash_location(current)
+            path.append(current)
+
+        return path[::-1]  # Reverse to get path from start to goal

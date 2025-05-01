@@ -1,5 +1,5 @@
 class Location:
-    """Represents a location in the grid with x, y coordinates."""
+    """Represents a location on the grid."""
 
     def __init__(self, x: int, y: int):
         self.x = x
@@ -15,12 +15,3 @@ class Location:
 
     def __repr__(self):
         return f"Location({self.x}, {self.y})"
-
-    def get_wrapped_coords(self, width: int, height: int) -> tuple:
-        """Get coordinates wrapped around grid boundaries."""
-        # Ensure we don't divide by zero
-        if width <= 0 or height <= 0:
-            return self.x, self.y
-
-        return self.x % width, self.y % height
-

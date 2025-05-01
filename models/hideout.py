@@ -1,127 +1,158 @@
-from models.entity import Entity
 from models.location import Location
-from utils.constants import EntityType, HunterSkill, HIDEOUT_MAX_CAPACITY, HIDEOUT_RECRUIT_PROBABILITY
-import random
-from typing import List, Set
+from utils.constants import EntityType
+from typing import List, Dict
 
-class Hideout(Entity):
-    """Represents a hideout in Eldoria."""
-    
-    def __init__(self, location: Location):
-        super().__init__(location, EntityType.HIDEOUT)
-        self.hunters = []
-        self.stored_treasure = 0
-        self.max_capacity = HIDEOUT_MAX_CAPACITY
-        self.known_treasure_locations = set()
-        self.known_hideout_locations = set()
-        self.known_knight_locations = set()
-    
-    def update(self, grid):
-        """Update hideout state, sharing information and possibly recruiting."""
-        # Share information between hunters in this hideout
-        self._share_information()
-        
-        # Check if we can recruit a new hunter
-        self._try_recruit_new_hunter(grid)
-    
-    def _share_information(self):
-        """Share knowledge between all hunters in the hideout."""
-        if len(self.hunters) <= 1:
-            return
-        
-        # Collect all known information
-        all_treasure_locations = set()
-        all_hideout_locations = set()
-        all_knight_locations = set()
-        
-        for hunter in self.hunters:
-            all_treasure_locations.update(hunter.known_treasure_locations)
-            all_hideout_locations.update(hunter.known_hideout_locations)
-            all_knight_locations.update(hunter.known_knight_locations)
-        
-        # Update hideout knowledge
-        self.known_treasure_locations.update(all_treasure_locations)
-        self.known_hideout_locations.update(all_hideout_locations)
-        self.known_knight_locations.update(all_knight_locations)
-        
-        # Share with all hunters
-        for hunter in self.hunters:
-            hunter.known_treasure_locations.update(all_treasure_locations)
-            hunter.known_hideout_locations.update(all_hideout_locations)
-            hunter.known_knight_locations.update(all_knight_locations)
-    
-    def _try_recruit_new_hunter(self, grid):
-        """Try to recruit a new hunter if conditions are met."""
-        # Check if we have space and a diverse skill set
-        if len(self.hunters) >= self.max_capacity or len(self.hunters) == 0:
-            return
-        
-        # Check for diverse skills
-        skills = set(hunter.skill for hunter in self.hunters)
-        if len(skills) < len(self.hunters):
-            # 20% chance to recruit a new hunter if we have diverse skills
-            if random.random() < HIDEOUT_RECRUIT_PROBABILITY:
-                from models.treasure_hunter import TreasureHunter
-                
-                # Choose a random skill from existing hunters
-                skill = random.choice([hunter.skill for hunter in self.hunters])
-                
-                # Create and add the new hunter
-                new_hunter = TreasureHunter(
-                    Location(self.location.x, self.location.y), 
-                    skill
-                )
-                
-                # Add knowledge of this hideout
-                new_hunter.known_hideout_locations.add(self.location)
-                new_hunter.in_hideout = self
-                
-                if grid.place_entity(new_hunter):
-                    self.hunters.append(new_hunter)
 
-    def add_hunter(self, hunter):
-        """Add a hunter to this hideout if there's space."""
-        if len(self.hunters) < self.max_capacity:
-            # Make sure hunter isn't already in this hideout
-            if hunter not in self.hunters:
-                self.hunters.append(hunter)
-                hunter.in_hideout = self
-                print(f"Added hunter to hideout at {self.location}, now contains {len(self.hunters)} hunters")
-                return True
-            return True  # Already in this hideout
-        else:
-            print(f"Hideout at {self.location} is at max capacity ({self.max_capacity})")
+class Hideout:
+    """
+    Represents a hideout where treasure hunters can rest, recover stamina,
+    and share information about treasures and knights.
+    """
+
+    def __init__(self, location: Location, max_capacity: int = 5):
+        """
+        Initialize a hideout.
+
+        Args:
+            location: The location of the hideout on the grid
+            max_capacity: Maximum number of hunters that can rest in the hideout at once
+        """
+        self.location = location
+        self.type = EntityType.HIDEOUT
+        self.hunters = []  # Hunters currently in the hideout
+        self.max_capacity = max_capacity
+
+        # Shared knowledge
+        self.known_treasures = {}  # Map of location hash to treasure info
+        self.known_knights = {}  # Map of location hash to knight info
+        self.stored_treasures = []  # Treasures stored in the hideout
+        self.stored_treasure_count = 0  # Number of treasure pieces stored
+        self.stored_treasure_value = 0  # Total value of stored treasures
+
+    def can_enter(self, hunter) -> bool:
+        """
+        Check if a hunter can enter the hideout.
+
+        Args:
+            hunter: The hunter trying to enter
+
+        Returns:
+            True if the hunter can enter, False otherwise
+        """
+        return len(self.hunters) < self.max_capacity
+
+    def enter(self, hunter) -> bool:
+        """
+        Hunter enters the hideout to rest.
+
+        Args:
+            hunter: The hunter entering the hideout
+
+        Returns:
+            True if the hunter successfully entered, False otherwise
+        """
+        if not self.can_enter(hunter):
             return False
-    
-    def remove_hunter(self, hunter):
-        """Remove a hunter from this hideout."""
-        if hunter in self.hunters:
-            self.hunters.remove(hunter)
-            hunter.in_hideout = None
-            return True
-        return False
-    
-    def store_treasure(self, value: float):
-        """Store treasure in the hideout."""
-        self.stored_treasure += value
-    
-    @staticmethod
-    def create_random(grid, count: int):
-        """Create random hideouts in the grid."""
-        hideouts = []
-        for _ in range(count):
-            attempts = 0
-            while attempts < 100:  # Limit attempts
-                x = random.randint(0, grid.width - 1)
-                y = random.randint(0, grid.height - 1)
-                location = Location(x, y)
-                
-                if grid.get_entity_at(location) is None:
-                    hideout = Hideout(location)
-                    if grid.place_entity(hideout):
-                        hideouts.append(hideout)
-                        break
-                
-                attempts += 1
-        
-        return hideouts
+
+        # Add hunter to the hideout
+        self.hunters.append(hunter)
+
+        # Share hunter's knowledge with the hideout
+        self._share_knowledge(hunter)
+
+        # Store treasures the hunter is carrying
+        if hunter.carrying_treasure_value > 0:
+            self.stored_treasures.append({
+                'value': hunter.carrying_treasure_value,
+                'type': hunter.carrying_treasure_type
+            })
+            self.stored_treasure_count += 1
+            self.stored_treasure_value += hunter.carrying_treasure_value
+
+            # Reset hunter's carrying state
+            hunter.carrying_treasure_value = 0
+            hunter.carrying_treasure_type = None
+
+        return True
+
+    def exit(self, hunter) -> bool:
+        """
+        Hunter exits the hideout after resting.
+
+        Args:
+            hunter: The hunter exiting the hideout
+
+        Returns:
+            True if the hunter successfully exited, False otherwise
+        """
+        if hunter not in self.hunters:
+            return False
+
+        # Remove hunter from the hideout
+        self.hunters.remove(hunter)
+
+        # Share hideout's knowledge with the hunter
+        self._share_hideout_knowledge(hunter)
+
+        return True
+
+    def update(self):
+        """Update the hideout state for a simulation step."""
+        # Restore stamina for all hunters in the hideout
+        for hunter in self.hunters:
+            # Restore 5% stamina per step
+            hunter.stamina = min(100, hunter.stamina + 5)
+
+    def _share_knowledge(self, hunter):
+        """Share hunter's knowledge with the hideout."""
+        # Share treasure knowledge
+        for loc_hash, treasure_info in hunter.known_treasures.items():
+            if loc_hash not in self.known_treasures or treasure_info['last_seen'] > self.known_treasures[loc_hash][
+                'last_seen']:
+                self.known_treasures[loc_hash] = treasure_info
+
+        # Share knight knowledge
+        for loc_hash, knight_info in hunter.known_knights.items():
+            if loc_hash not in self.known_knights or knight_info['last_seen'] > self.known_knights[loc_hash][
+                'last_seen']:
+                self.known_knights[loc_hash] = knight_info
+
+    def _share_hideout_knowledge(self, hunter):
+        """Share hideout's knowledge with a hunter."""
+        # Share treasure knowledge
+        for loc_hash, treasure_info in self.known_treasures.items():
+            if loc_hash not in hunter.known_treasures or treasure_info['last_seen'] > hunter.known_treasures[loc_hash][
+                'last_seen']:
+                hunter.known_treasures[loc_hash] = treasure_info
+
+        # Share knight knowledge
+        for loc_hash, knight_info in self.known_knights.items():
+            if loc_hash not in hunter.known_knights or knight_info['last_seen'] > hunter.known_knights[loc_hash][
+                'last_seen']:
+                hunter.known_knights[loc_hash] = knight_info
+
+    @classmethod
+    def create_random(cls, grid, existing_locations=None):
+        """
+        Create a hideout at a random empty location on the grid.
+
+        Args:
+            grid: The simulation grid
+            existing_locations: Optional list of locations to avoid
+
+        Returns:
+            A new Hideout instance, or None if no empty location could be found
+        """
+        # Find a random empty location
+        location = grid.find_random_empty_location(existing_locations)
+        if not location:
+            return None
+
+        # Create hideout
+        hideout = cls(location)
+
+        # Add to grid
+        if grid.add_entity(hideout):  # Changed from place_entity to add_entity
+            return hideout
+
+        return None

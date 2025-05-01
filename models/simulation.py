@@ -1,25 +1,30 @@
 from models.grid import Grid
 from models.hideout import Hideout
-from models.location import Location
 from models.treasure_hunter import TreasureHunter
 from models.treasure import Treasure
 from models.knight import Knight
 from models.garrison import Garrison
-from utils.constants import EntityType, DEFAULT_GRID_SIZE, HunterSkill
-import random
+from models.location import Location
+from utils.constants import EntityType, HunterSkill, DEFAULT_GRID_SIZE
 from utils.helpers import calculate_wrapped_distance
+import random
 
 
 class Simulation:
     """Main simulation class for Knights of Eldoria."""
 
-    def __init__(self, grid_size: int = DEFAULT_GRID_SIZE):
+    def __init__(self, grid_size=DEFAULT_GRID_SIZE):
         self.grid = Grid(grid_size, grid_size)
+        self.step_count = 0
         self.running = False
         self.setup_complete = False
-        self.total_treasure_collected = 0
-        self.total_hunters_lost = 0
-        self.step_count = 0
+
+        # Store references to entity groups
+        self.hideouts = []
+        self.hunters = []
+        self.treasures = []
+        self.knights = []
+        self.garrisons = []
 
     def setup(self, num_hideouts: int = 3, num_hunters_per_hideout: int = 2,
               num_treasures: int = 30, num_knights: int = 2, num_garrisons: int = 2):
@@ -54,7 +59,6 @@ class Simulation:
                 skill = random.choice(list(HunterSkill))
 
                 # Create hunter
-                from models.treasure_hunter import TreasureHunter
                 hunter = TreasureHunter(location, skill)
 
                 # Place on grid
@@ -67,7 +71,6 @@ class Simulation:
                     min_distance = float('inf')
 
                     for hideout in self.hideouts:
-                        from utils.helpers import calculate_wrapped_distance
                         distance = calculate_wrapped_distance(
                             hunter.location.x, hunter.location.y,
                             hideout.location.x, hideout.location.y,
@@ -86,29 +89,36 @@ class Simulation:
         self.setup_complete = True
         self.running = True  # Set as running immediately after setup
 
-    def start(self):
-        """Start the simulation."""
-        if not self.setup_complete:
-            raise RuntimeError("Simulation setup must be completed before starting")
-
-        self.running = True
-
-    def stop(self):
-        """Stop the simulation."""
-        self.running = False
-
     def step(self):
         """Perform one step of the simulation."""
         if not self.running:
             return
 
-        # Perform grid step (updates all entities)
-        self.grid.step()
+        # Update hideouts first to handle knowledge sharing
+        for hideout in self.hideouts:
+            hideout.update(self.grid)
+
+        # Then update all other entities
+        for entity in list(self.grid.entities):  # Create a copy to avoid modification during iteration
+            if entity.type != EntityType.HIDEOUT:  # Skip hideouts as they're already updated
+                entity.update(self.grid)
+
         self.step_count += 1
 
-        # Check stopping conditions - only stop if all treasure is gone AND no hunters remain
+        # Update entity lists
+        self._update_entity_lists()
+
+        # Check stopping conditions
         if (not self.grid.has_treasure()) and (not self.grid.has_hunters()):
             self.running = False
+
+    def _update_entity_lists(self):
+        """Update the entity lists to reflect the current state of the grid."""
+        self.hideouts = [e for e in self.grid.entities if e.type == EntityType.HIDEOUT]
+        self.hunters = [e for e in self.grid.entities if e.type == EntityType.HUNTER]
+        self.treasures = [e for e in self.grid.entities if e.type == EntityType.TREASURE]
+        self.knights = [e for e in self.grid.entities if e.type == EntityType.KNIGHT]
+        self.garrisons = [e for e in self.grid.entities if e.type == EntityType.GARRISON]
 
     def get_stats(self):
         """Get current simulation statistics."""
@@ -116,7 +126,11 @@ class Simulation:
         entity_counts = self.grid.count_entities_by_type()
 
         # Calculate total treasure stored in hideouts
-        total_stored = sum(hideout.stored_treasure for hideout in self.hideouts)
+        total_stored_value = sum(hideout.stored_treasure for hideout in self.hideouts)
+        total_stored_count = sum(hideout.stored_treasure_count for hideout in self.hideouts)
+
+        # Calculate total hunter wealth
+        total_hunter_wealth = sum(hunter.wealth for hunter in self.hunters)
 
         # Return statistics
         return {
@@ -126,54 +140,7 @@ class Simulation:
             "knights": entity_counts[EntityType.KNIGHT],
             "hideouts": entity_counts[EntityType.HIDEOUT],
             "garrisons": entity_counts[EntityType.GARRISON],
-            "total_treasure_collected": total_stored
+            "total_treasure_collected": total_stored_value,
+            "total_treasure_pieces_collected": total_stored_count,
+            "total_hunter_wealth": total_hunter_wealth
         }
-
-    def reset(self):
-        """Reset the simulation."""
-        grid_size = self.grid.width  # Preserve grid size
-        self.__init__(grid_size)
-
-    def _create_hunters(self, total_hunters: int):
-        """Create hunters directly on empty cells."""
-        hunters = []
-        attempts = 0
-
-        while len(hunters) < total_hunters and attempts < 100:
-            # Find an empty cell
-            x = random.randint(0, self.grid.width - 1)
-            y = random.randint(0, self.grid.height - 1)
-            location = Location(x, y)
-
-            if self.grid.get_entity_at(location) is None:
-                # Choose random skill
-                skill = random.choice(list(HunterSkill))
-
-                # Create hunter
-                hunter = TreasureHunter(location, skill)
-
-                # Place on grid
-                if self.grid.place_entity(hunter):
-                    hunters.append(hunter)
-
-                    # Find nearest hideout and add knowledge
-                    nearest_hideout = None
-                    min_distance = float('inf')
-
-                    for hideout in self.hideouts:
-                        distance = calculate_wrapped_distance(
-                            hunter.location.x, hunter.location.y,
-                            hideout.location.x, hideout.location.y,
-                            self.grid.width, self.grid.height
-                        )
-
-                        if distance < min_distance:
-                            min_distance = distance
-                            nearest_hideout = hideout
-
-                    if nearest_hideout:
-                        hunter.knowledge.add_hideout_location(nearest_hideout.location)
-
-            attempts += 1
-
-        return hunters

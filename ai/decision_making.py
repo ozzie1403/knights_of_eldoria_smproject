@@ -1,147 +1,189 @@
-from typing import List, Tuple, Dict, Optional
 from models.location import Location
 from utils.helpers import calculate_wrapped_distance
-from utils.constants import EntityType, HunterSkill
+from typing import List, Tuple, Dict, Set
 import random
-from sklearn.cluster import KMeans
-import numpy as np
+import math
 
-def find_nearest_entity(current_location: Location, locations: List[Location], 
-                        width: int, height: int) -> Optional[Location]:
-    """Find the nearest entity location from a list of locations."""
-    if not locations:
-        return None
-    
-    nearest = None
-    min_distance = float('inf')
-    
-    for location in locations:
-        distance = calculate_wrapped_distance(
-            current_location.x, current_location.y,
-            location.x, location.y,
-            width, height
-        )
-        if distance < min_distance:
-            min_distance = distance
-            nearest = location
-    
-    return nearest
 
-def cluster_treasure_locations(hunter_location: Location, treasure_locations: List[Location], 
-                               width: int, height: int) -> Optional[Location]:
-    """Use K-means clustering to find the best treasure to target."""
-    if not treasure_locations:
-        return None
-    
-    if len(treasure_locations) == 1:
-        return treasure_locations[0]
-    
-    # Convert locations to numpy array
-    locations_array = np.array([[loc.x, loc.y] for loc in treasure_locations])
-    
-    # Determine number of clusters (at most 3, but depends on data)
-    n_clusters = min(3, len(locations_array))
-    
-    # Apply KMeans clustering
-    kmeans = KMeans(n_clusters=n_clusters, random_state=0).fit(locations_array)
-    
-    # Find the closest cluster center to the hunter
-    hunter_pos = np.array([[hunter_location.x, hunter_location.y]])
-    distances = np.linalg.norm(kmeans.cluster_centers_ - hunter_pos, axis=1)
-    closest_cluster = np.argmin(distances)
-    
-    # Get the treasures in the closest cluster
-    mask = kmeans.labels_ == closest_cluster
-    cluster_treasures = [treasure_locations[i] for i in range(len(treasure_locations)) if mask[i]]
-    
-    # Return the closest treasure in that cluster
-    return find_nearest_entity(hunter_location, cluster_treasures, width, height)
+class KMeansCluster:
+    """K-means clustering for strategic decision making in the simulation."""
 
-def decide_hunter_action(hunter, grid):
-    """Decide the next action for a treasure hunter using AI techniques."""
-    # If carrying treasure, bring it to a hideout
-    if hunter.carrying_treasure_value > 0:
-        if hunter.known_hideout_locations:
-            return "deposit", find_nearest_entity(
-                hunter.location, 
-                list(hunter.known_hideout_locations),
-                grid.width, grid.height
+    def __init__(self, grid):
+        self.grid = grid
+
+    def cluster_locations(self, locations: List[Location], k: int, max_iterations: int = 10):
+        """
+        Cluster locations into k groups using K-means algorithm.
+
+        Args:
+            locations: List of locations to cluster
+            k: Number of clusters
+            max_iterations: Maximum number of iterations
+
+        Returns:
+            Dictionary mapping cluster index to list of locations in that cluster
+        """
+        if not locations:
+            return {}
+
+        if len(locations) <= k:
+            # Not enough locations to make k clusters, just return each location as its own cluster
+            return {i: [loc] for i, loc in enumerate(locations[:k])}
+
+        # Initialize centroids randomly from the locations
+        centroids = random.sample(locations, k)
+
+        # Initialize clusters
+        clusters = {}
+
+        for _ in range(max_iterations):
+            # Reset clusters
+            clusters = {i: [] for i in range(k)}
+
+            # Assign each location to the nearest centroid
+            for location in locations:
+                nearest_centroid_idx = self._find_nearest_centroid(location, centroids)
+                clusters[nearest_centroid_idx].append(location)
+
+            # Update centroids
+            new_centroids = []
+            for i in range(k):
+                if clusters[i]:
+                    new_centroid = self._calculate_centroid(clusters[i])
+                    new_centroids.append(new_centroid)
+                else:
+                    # If a cluster is empty, keep the old centroid
+                    new_centroids.append(centroids[i])
+
+            # Check if centroids have changed
+            if all(self._are_locations_equal(c1, c2) for c1, c2 in zip(centroids, new_centroids)):
+                break
+
+            centroids = new_centroids
+
+        return clusters
+
+    def _find_nearest_centroid(self, location: Location, centroids: List[Location]):
+        """Find the index of the nearest centroid to a location."""
+        min_distance = float('inf')
+        nearest_idx = 0
+
+        for i, centroid in enumerate(centroids):
+            distance = calculate_wrapped_distance(
+                location.x, location.y,
+                centroid.x, centroid.y,
+                self.grid.width, self.grid.height
             )
-        return "explore", None
-    
-    # If stamina is critically low, find a hideout to rest
-    if hunter.stamina <= hunter.critical_stamina:
-        if hunter.known_hideout_locations:
-            return "rest", find_nearest_entity(
-                hunter.location,
-                list(hunter.known_hideout_locations),
-                grid.width, grid.height
-            )
-        return "explore", None
-    
-    # If there are known treasures, use clustering to decide which to pursue
-    if hunter.known_treasure_locations:
-        target = cluster_treasure_locations(
-            hunter.location,
-            list(hunter.known_treasure_locations),
-            grid.width, grid.height
-        )
-        if target:
-            # Verify it's still there
-            entity = grid.get_entity_at(target)
-            if entity and entity.type == EntityType.TREASURE:
-                return "collect", target
-            else:
-                # Remove from known locations if treasure is gone
-                hunter.knowledge.remove_treasure_location(target)
-    
-    # If no known treasure or target is invalid, explore
-    return "explore", None
 
-def decide_knight_action(knight, grid):
-    """Decide the next action for a knight."""
-    # If resting, continue resting
-    if knight.resting:
-        return "rest", None
-    
-    # If energy is critically low, rest
-    if knight.energy <= knight.critical_energy:
-        return "rest", None
-    
-    # Check for hunters in detection radius
-    nearby_hunters = grid.get_nearby_entities(
-        knight.location, 
-        knight.detection_radius,
-        EntityType.HUNTER
-    )
-    
-    # If we have a target, continue pursuit
-    if knight.target and knight.target in grid.entities:
-        distance = calculate_wrapped_distance(
-            knight.location.x, knight.location.y,
-            knight.target.location.x, knight.target.location.y,
-            grid.width, grid.height
-        )
-        # If we caught the target
-        if distance < 1.5:
-            return "catch", knight.target
-        # Continue pursuit
-        return "pursue", knight.target.location
-    
-    # If no current target but hunters detected, choose one
-    if nearby_hunters:
-        # If hunter has stealth skill, they're less likely to be detected
-        detectable_hunters = []
-        for hunter in nearby_hunters:
-            if hunter.skill == HunterSkill.STEALTH:
-                if random.random() < 0.5:  # 50% chance to remain undetected
-                    detectable_hunters.append(hunter)
-            else:
-                detectable_hunters.append(hunter)
-        
-        if detectable_hunters:
-            target = random.choice(detectable_hunters)
-            return "target", target
-    
-    # No hunters detected, patrol randomly
-    return "patrol", None
+            if distance < min_distance:
+                min_distance = distance
+                nearest_idx = i
+
+        return nearest_idx
+
+    def _calculate_centroid(self, locations: List[Location]):
+        """Calculate the centroid of a group of locations, accounting for wrap-around."""
+        if not locations:
+            return None
+
+        # For a grid with wrap-around, we need to be careful about the center calculation
+        # We'll use a circular mean approach
+
+        # Convert to radians
+        x_radians = [2 * math.pi * loc.x / self.grid.width for loc in locations]
+        y_radians = [2 * math.pi * loc.y / self.grid.height for loc in locations]
+
+        # Calculate averages of sin and cos
+        x_sin_avg = sum(math.sin(rad) for rad in x_radians) / len(locations)
+        x_cos_avg = sum(math.cos(rad) for rad in x_radians) / len(locations)
+        y_sin_avg = sum(math.sin(rad) for rad in y_radians) / len(locations)
+        y_cos_avg = sum(math.cos(rad) for rad in y_radians) / len(locations)
+
+        # Convert back to grid coordinates
+        x_angle = math.atan2(x_sin_avg, x_cos_avg)
+        y_angle = math.atan2(y_sin_avg, y_cos_avg)
+
+        x = int((x_angle / (2 * math.pi) * self.grid.width) % self.grid.width)
+        y = int((y_angle / (2 * math.pi) * self.grid.height) % self.grid.height)
+
+        return Location(x, y)
+
+    def _are_locations_equal(self, loc1: Location, loc2: Location):
+        """Check if two locations are equal."""
+        return loc1.x == loc2.x and loc1.y == loc2.y
+
+    def find_optimal_regions(self, treasure_locations: List[Location], knight_locations: List[Location],
+                             num_regions: int):
+        """
+        Find optimal regions for hunters to explore based on treasure density and knight avoidance.
+
+        Args:
+            treasure_locations: Locations of known treasures
+            knight_locations: Locations of known knights
+            num_regions: Number of regions to identify
+
+        Returns:
+            List of Location objects representing the centers of optimal regions
+        """
+        if not treasure_locations:
+            return []
+
+        # Create a safety score map based on distance from knights
+        safety_scores = {}
+        for x in range(self.grid.width):
+            for y in range(self.grid.height):
+                loc = Location(x, y)
+
+                # Calculate minimum distance to knights
+                min_knight_distance = float('inf')
+                for knight_loc in knight_locations:
+                    distance = calculate_wrapped_distance(
+                        x, y, knight_loc.x, knight_loc.y,
+                        self.grid.width, self.grid.height
+                    )
+                    min_knight_distance = min(min_knight_distance, distance)
+
+                # Higher score for locations further from knights
+                if knight_locations:
+                    safety_scores[(x, y)] = min_knight_distance
+                else:
+                    safety_scores[(x, y)] = self.grid.width  # Maximum possible safety if no knights
+
+        # Calculate treasure density scores
+        treasure_clusters = self.cluster_locations(treasure_locations, min(num_regions, len(treasure_locations)))
+
+        # Calculate the value of each cluster based on number of treasures
+        cluster_values = {i: len(cluster) for i, cluster in treasure_clusters.items()}
+
+        # Get the centroids of the clusters
+        centroids = []
+        for i in range(len(treasure_clusters)):
+            if treasure_clusters[i]:
+                centroid = self._calculate_centroid(treasure_clusters[i])
+                centroids.append((centroid, cluster_values[i]))
+
+        # Sort centroids by value (highest first)
+        centroids.sort(key=lambda x: x[1], reverse=True)
+
+        # Return the top regions, prioritizing safety and treasure density
+        optimal_regions = []
+        for centroid, _ in centroids[:num_regions]:
+            # Find the safest cell near the centroid
+            max_safety = -1
+            best_location = centroid
+
+            # Check cells in a small radius around the centroid
+            radius = 3
+            for dx in range(-radius, radius + 1):
+                for dy in range(-radius, radius + 1):
+                    x = (centroid.x + dx) % self.grid.width
+                    y = (centroid.y + dy) % self.grid.height
+
+                    safety = safety_scores.get((x, y), 0)
+                    if safety > max_safety:
+                        max_safety = safety
+                        best_location = Location(x, y)
+
+            optimal_regions.append(best_location)
+
+        return optimal_regions

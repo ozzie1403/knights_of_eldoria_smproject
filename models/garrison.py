@@ -1,54 +1,70 @@
-from models.entity import Entity
 from models.location import Location
-from utils.constants import EntityType, GARRISON_MAX_CAPACITY
-import random
+from utils.constants import EntityType
+from typing import List
 
 
-class Garrison(Entity):
-    """Represents a knight's garrison (resting place) in Eldoria."""
+class Garrison:
+    """
+    Represents a garrison where knights are stationed and can patrol from.
+    """
 
     def __init__(self, location: Location):
-        super().__init__(location, EntityType.GARRISON)
-        self.knights = []
-        self.max_capacity = GARRISON_MAX_CAPACITY
+        """
+        Initialize a garrison.
 
-    def update(self, grid):
-        """Update garrison state."""
-        pass  # Garrisons don't need to do anything on update
+        Args:
+            location: The location of the garrison on the grid
+        """
+        self.location = location
+        self.type = EntityType.GARRISON
+        self.knights = []  # Knights stationed at this garrison
 
-    def add_knight(self, knight):
-        """Add a knight to this garrison if there's space."""
-        if len(self.knights) < self.max_capacity:
-            self.knights.append(knight)
-            knight.in_garrison = self
-            return True
-        return False
+    def update(self):
+        """Update the garrison state for a simulation step."""
+        # Knights in the garrison regain energy
+        for knight in self.knights:
+            # Restore 5% energy per step
+            knight.energy = min(100, knight.energy + 5)
 
-    def remove_knight(self, knight):
-        """Remove a knight from this garrison."""
+    def station_knight(self, knight) -> bool:
+        """
+        Station a knight at this garrison.
+
+        Args:
+            knight: The knight to station
+
+        Returns:
+            True if the knight was successfully stationed, False otherwise
+        """
         if knight in self.knights:
-            self.knights.remove(knight)
-            knight.in_garrison = None
-            return True
-        return False
+            return False
 
-    @staticmethod
-    def create_random(grid, count: int):
-        """Create random garrisons in the grid."""
-        garrisons = []
-        for _ in range(count):
-            attempts = 0
-            while attempts < 100:  # Limit attempts
-                x = random.randint(0, grid.width - 1)
-                y = random.randint(0, grid.height - 1)
-                location = Location(x, y)
+        self.knights.append(knight)
+        knight.garrison = self
+        return True
 
-                if grid.get_entity_at(location) is None:
-                    garrison = Garrison(location)
-                    if grid.place_entity(garrison):
-                        garrisons.append(garrison)
-                        break
+    @classmethod
+    def create_random(cls, grid, existing_locations=None):
+        """
+        Create a garrison at a random empty location on the grid.
 
-                attempts += 1
+        Args:
+            grid: The simulation grid
+            existing_locations: Optional list of locations to avoid
 
-        return garrisons
+        Returns:
+            A new Garrison instance, or None if no empty location could be found
+        """
+        # Find a random empty location
+        location = grid.find_random_empty_location(existing_locations)
+        if not location:
+            return None
+
+        # Create garrison
+        garrison = cls(location)
+
+        # Add to grid
+        if grid.add_entity(garrison):  # Changed from place_entity to add_entity
+            return garrison
+
+        return None

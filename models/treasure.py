@@ -1,45 +1,87 @@
-from models.entity import Entity
-from models.location import Location
-from utils.constants import EntityType, TreasureType, TREASURE_VALUES, TREASURE_VALUE_DECAY
 import random
+from models.location import Location
+from utils.constants import EntityType, TreasureType
 
-class Treasure(Entity):
-    """Represents a treasure in Eldoria."""
-    
-    def __init__(self, location: Location, treasure_type: TreasureType):
-        super().__init__(location, EntityType.TREASURE)
+
+class Treasure:
+    """
+    Represents a treasure that can be collected by hunters.
+    Treasures have different types (bronze, silver, gold) and values.
+    """
+
+    def __init__(self, location: Location, treasure_type: TreasureType = None, initial_value: float = None):
+        """
+        Initialize a treasure.
+
+        Args:
+            location: The location of the treasure on the grid
+            treasure_type: The type of treasure (bronze, silver, gold)
+            initial_value: The initial value of the treasure
+        """
+        self.location = location
+        self.type = EntityType.TREASURE
+
+        # Set treasure type randomly if not specified
+        if treasure_type is None:
+            # 60% bronze, 30% silver, 10% gold
+            rand = random.random()
+            if rand < 0.6:
+                treasure_type = TreasureType.BRONZE
+            elif rand < 0.9:
+                treasure_type = TreasureType.SILVER
+            else:
+                treasure_type = TreasureType.GOLD
+
         self.treasure_type = treasure_type
-        self.value = TREASURE_VALUES[treasure_type]
-    
-    def update(self, grid):
-        """Update treasure state, decreasing value over time."""
-        self.value -= self.value * TREASURE_VALUE_DECAY
-        
-        # If value drops to zero or below, remove it
-        if self.value <= 0:
-            grid.remove_entity(self)
-    
-    @staticmethod
-    def create_random(grid, count: int):
-        """Create random treasures in the grid."""
+
+        # Set initial value based on type if not specified
+        if initial_value is None:
+            if treasure_type == TreasureType.BRONZE:
+                initial_value = 3.0  # 3% wealth increase
+            elif treasure_type == TreasureType.SILVER:
+                initial_value = 7.0  # 7% wealth increase
+            else:  # GOLD
+                initial_value = 13.0  # 13% wealth increase
+
+        self.initial_value = initial_value
+        self.value = initial_value
+
+    def update(self):
+        """Update the treasure state for a simulation step."""
+        # Treasures lose 0.1% of their value per step
+        self.value = max(0, self.value - (self.initial_value * 0.001))
+
+    @classmethod
+    def create_random(cls, grid, num_treasures, existing_locations=None):
+        """
+        Create multiple treasures at random empty locations on the grid.
+
+        Args:
+            grid: The simulation grid
+            num_treasures: Number of treasures to create
+            existing_locations: Optional list of locations to avoid
+
+        Returns:
+            List of created Treasure instances
+        """
         treasures = []
-        for _ in range(count):
-            # Try to place treasure in an empty cell
-            attempts = 0
-            while attempts < 100:  # Limit attempts
-                x = random.randint(0, grid.width - 1)
-                y = random.randint(0, grid.height - 1)
-                location = Location(x, y)
-                
-                if grid.get_entity_at(location) is None:
-                    # Choose random treasure type
-                    treasure_type = random.choice(list(TreasureType))
-                    treasure = Treasure(location, treasure_type)
-                    
-                    if grid.place_entity(treasure):
-                        treasures.append(treasure)
-                        break
-                
-                attempts += 1
-        
+
+        for _ in range(num_treasures):
+            # Find a random empty location
+            location = grid.find_random_empty_location(existing_locations)
+            if not location:
+                break
+
+            # Create treasure with random type
+            treasure = cls(location)
+
+            # Add to grid
+            if grid.add_entity(treasure):  # Changed from place_entity to add_entity
+                treasures.append(treasure)
+
+                # Add this location to existing locations to avoid
+                if existing_locations is None:
+                    existing_locations = []
+                existing_locations.append(location)
+
         return treasures
