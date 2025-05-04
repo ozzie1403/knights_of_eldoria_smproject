@@ -1,4 +1,4 @@
-from typing import List, Tuple, Optional, Dict
+from typing import List, Tuple, Optional, Dict, Any
 import random
 from models.enums import CellType, TreasureType, HunterSkill, HunterState
 from logic.game_logic import GameLogic
@@ -38,9 +38,9 @@ class Grid:
         }
         # Initial treasure values
         self.initial_treasure_values = {
-            TreasureType.BRONZE.value: 50.0,  # Bronze starts with 50 value
-            TreasureType.SILVER.value: 100.0, # Silver starts with 100 value
-            TreasureType.GOLD.value: 200.0    # Gold starts with 200 value
+            TreasureType.BRONZE.value: 70.0,  # Bronze starts with 70 value
+            TreasureType.SILVER.value: 80.0,  # Silver starts with 80 value
+            TreasureType.GOLD.value: 99.0     # Gold starts with 99 value
         }
         # Value degradation rate per step
         self.treasure_degradation_rate = 0.001  # 0.1% degradation per step
@@ -157,19 +157,26 @@ class Grid:
         for pos, (treasure_type, current_value) in self.treasure_values.items():
             # Calculate new value after degradation
             new_value = current_value * (1 - self.treasure_degradation_rate)
-            print(f"[DEBUG][grid] Treasure at {pos} degrading: {current_value:.2f} -> {new_value:.2f}")
+            treasure_name = "Bronze" if treasure_type == TreasureType.BRONZE.value else \
+                          "Silver" if treasure_type == TreasureType.SILVER.value else "Gold"
+            print(f"[DEBUG][grid] {treasure_name} treasure at {pos} degrading: {current_value:.2f} -> {new_value:.2f}")
             
             if new_value <= 0:
                 # Mark treasure for removal
                 treasures_to_remove.append(pos)
-                print(f"[DEBUG][grid] Treasure at {pos} has lost all value, removing")
+                print(f"[DEBUG][grid] {treasure_name} treasure at {pos} has lost all value, removing from simulation")
             else:
                 # Update treasure value
                 self.treasure_values[pos] = (treasure_type, new_value)
         
         # Remove treasures that have lost all value
         for pos in treasures_to_remove:
+            old_type = self.treasure_values[pos][0]
+            treasure_name = "Bronze" if old_type == TreasureType.BRONZE.value else \
+                          "Silver" if old_type == TreasureType.SILVER.value else "Gold"
+            print(f"[DEBUG][grid] Removing {treasure_name} treasure at {pos} from grid")
             self.set_cell(pos[0], pos[1], CellType.EMPTY.value)
+            self.treasure_values.pop(pos)
     
     def set_cell(self, x: int, y: int, value: int, treasure_type: Optional[TreasureType] = None) -> bool:
         """
@@ -303,39 +310,37 @@ class Grid:
         # Clear hunter wealth
         self.hunter_wealth.clear()
     
-    def random_fill(self) -> None:
+    def random_fill(self, reserved_positions=None) -> None:
         """
-        Fill grid with random cell types, ensuring at least one of each entity type.
+        Fill grid with random cell types, ensuring exactly 5 hunters and 1 hideout, and up to 3 treasures.
+        If reserved_positions is provided, those cells are left untouched.
         """
+        if reserved_positions is None:
+            reserved_positions = set()
         # First clear the grid
         self.clear_grid()
-        
-        # Create a list of all possible positions
-        positions = [(x, y) for y in range(self.height) for x in range(self.width)]
+        # Create a list of all possible positions, skipping reserved
+        positions = [(x, y) for y in range(self.height) for x in range(self.width)
+                     if (x, y) not in reserved_positions]
         random.shuffle(positions)
-        
-        # Place one of each entity type
-        entity_types = [CellType.TREASURE_HUNTER.value,
-                       CellType.HIDEOUT.value,
-                       CellType.KNIGHT.value]
-        
-        for entity_type in entity_types:
+        # Place exactly 5 hunters
+        for _ in range(5):
             if positions:
                 x, y = positions.pop()
-                self.set_cell(x, y, entity_type)
-        
-        # Place some treasures with random values
-        num_treasures = min(len(positions) // 3, 5)  # Place up to 5 treasures or 1/3 of remaining positions
-        for _ in range(num_treasures):
+                self.set_cell(x, y, CellType.TREASURE_HUNTER.value)
+        # Place exactly 1 hideout
+        if positions:
+            x, y = positions.pop()
+            self.set_cell(x, y, CellType.HIDEOUT.value)
+        # Place up to 3 treasures
+        for _ in range(3):
             if positions:
                 x, y = positions.pop()
                 treasure_type = random.choice(list(TreasureType))
                 self.set_cell(x, y, CellType.TREASURE.value, treasure_type)
-        
-        # Fill remaining positions randomly
+        # Fill remaining positions with empty
         for x, y in positions:
-            value = random.choice([CellType.EMPTY.value] + entity_types)
-            self.set_cell(x, y, value)
+            self.set_cell(x, y, CellType.EMPTY.value)
     
     def get_entity_positions(self, entity_type: int) -> List[Tuple[int, int]]:
         """
@@ -392,47 +397,66 @@ class Grid:
             'hunter_wealth': self.hunter_wealth
         }
 
-    def get_grid_contents(self) -> List[List[Dict]]:
+    def get_hunter_stamina(self, x: int, y: int) -> Optional[float]:
         """
-        Get the contents of the grid in a format suitable for visualization.
-        Returns a 2D array of cell contents.
+        Get the stamina of a hunter at the specified position.
+        
+        Args:
+            x (int): X coordinate
+            y (int): Y coordinate
+            
+        Returns:
+            Optional[float]: Hunter's stamina if position contains a hunter, None otherwise
         """
-        contents = []
-        for y in range(self.height):
-            row = []
-            for x in range(self.width):
-                cell_type = self.get_cell(x, y)
-                cell_info = {
-                    'type': cell_type,
-                    'x': x,
-                    'y': y,
-                    'symbol': self._get_cell_symbol(cell_type)
-                }
+        hunter = self.get_hunter_at(x, y)
+        if hunter is not None:
+            return hunter.get_stamina_percentage()
+        return None
+
+    def get_grid_contents(self, x: int, y: int) -> Dict[str, Any]:
+        """
+        Get the contents of a cell at the specified coordinates.
+        
+        Args:
+            x (int): X coordinate
+            y (int): Y coordinate
+            
+        Returns:
+            Dict[str, Any]: Dictionary containing cell information
+        """
+        cell_type = self.get_cell(x, y)
+        cell_info = {'type': cell_type}
+        
+        if cell_type == CellType.TREASURE_HUNTER.value:
+            # Get hunter's stamina
+            stamina = self.get_hunter_stamina(x, y)
+            if stamina is not None:
+                cell_info['stamina'] = stamina
+                print(f"[DEBUG] Hunter at ({x},{y}) stamina: {stamina:.2f}")
+            
+            # Get hunter's state and check if carrying treasure
+            hunter = self.get_hunter_at(x, y)
+            if hunter is not None:
+                cell_info['state'] = hunter.state
+                cell_info['hunter_id'] = hunter.hunter_id
+                if hunter.carried_treasure is not None:
+                    cell_info['carrying'] = True
+                    print(f"[DEBUG] Hunter at ({x},{y}) is carrying treasure")
                 
-                # Add additional information based on cell type
-                if cell_type == CellType.TREASURE_HUNTER.value:
-                    hunter = self.get_hunter_at(x, y)
-                    if hunter:
-                        cell_info['stamina'] = hunter.get_stamina_percentage()
-                        cell_info['state'] = hunter.state
-                        cell_info['carrying'] = hunter.state == HunterState.CARRYING and hunter.carried_treasure is not None
-                        # Add wealth information
-                        wealth = self.get_hunter_wealth(x, y)
-                        if wealth is not None:
-                            cell_info['wealth'] = wealth
-                            print(f"[DEBUG][grid] Hunter at ({x},{y}) wealth: {wealth:.2f}")
-                        print(f"[DEBUG][grid] Hunter at ({x},{y}) stamina: {cell_info['stamina']:.2f}%")
-                
-                elif cell_type == CellType.TREASURE.value:
-                    treasure_data = self.get_treasure_value(x, y)
-                    if treasure_data:
-                        treasure_type, value = treasure_data
-                        cell_info['value'] = value
-                        cell_info['treasure_type'] = treasure_type
-                
-                row.append(cell_info)
-            contents.append(row)
-        return contents
+                # Add wealth information
+                wealth = self.get_hunter_wealth(x, y)
+                if wealth is not None:
+                    cell_info['wealth'] = wealth
+                    print(f"[DEBUG][grid] Hunter at ({x},{y}) wealth: {wealth:.2f}")
+        
+        elif cell_type == CellType.TREASURE.value:
+            treasure_data = self.get_treasure_value(x, y)
+            if treasure_data:
+                treasure_type, value = treasure_data
+                cell_info['value'] = value
+                cell_info['treasure_type'] = treasure_type
+        
+        return cell_info
     
     def _get_cell_symbol(self, cell_type: int) -> str:
         """

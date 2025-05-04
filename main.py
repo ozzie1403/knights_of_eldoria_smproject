@@ -4,6 +4,7 @@ import sys
 import tkinter as tk
 from tkinter import ttk
 from models.simulation import Simulation, SimulationState
+from models.enums import CellType, TreasureType, HunterState
 
 def validate_size(size: int) -> int:
     """Validate and return the grid size."""
@@ -112,18 +113,15 @@ class SimulationGUI:
         self.hunters_label = ttk.Label(self.status_frame, text="Active Hunters: 0")
         self.hunters_label.grid(row=1, column=0, sticky=tk.W, pady=2)
         
-        self.treasure_label = ttk.Label(self.status_frame, text="Treasure Collected: 0.00")
-        self.treasure_label.grid(row=2, column=0, sticky=tk.W, pady=2)
-        
         self.efficiency_label = ttk.Label(self.status_frame, text="Collection Efficiency: 0.00%")
-        self.efficiency_label.grid(row=3, column=0, sticky=tk.W, pady=2)
+        self.efficiency_label.grid(row=2, column=0, sticky=tk.W, pady=2)
         
         self.survival_label = ttk.Label(self.status_frame, text="Hunter Survival Rate: 0.00%")
-        self.survival_label.grid(row=4, column=0, sticky=tk.W, pady=2)
+        self.survival_label.grid(row=3, column=0, sticky=tk.W, pady=2)
         
         # Add legend section
         legend_frame = ttk.LabelFrame(self.status_frame, text="Legend", padding="5")
-        legend_frame.grid(row=5, column=0, sticky=(tk.W, tk.E), pady=10)
+        legend_frame.grid(row=4, column=0, sticky=(tk.W, tk.E), pady=10)
         
         # Treasure types and their wealth increase
         ttk.Label(legend_frame, text="Treasure Types:", font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky=tk.W, pady=2)
@@ -135,6 +133,15 @@ class SimulationGUI:
         ttk.Label(legend_frame, text="\nTreasure Degradation:", font=('Arial', 10, 'bold')).grid(row=4, column=0, sticky=tk.W, pady=2)
         ttk.Label(legend_frame, text="• All treasures lose 0.1% value per step").grid(row=5, column=0, sticky=tk.W)
         ttk.Label(legend_frame, text="• Treasures are removed when value reaches 0").grid(row=6, column=0, sticky=tk.W)
+        
+        # Treasure deposited
+        ttk.Label(legend_frame, text="\nTreasure Deposited:", font=('Arial', 10, 'bold')).grid(row=7, column=0, sticky=tk.W, pady=2)
+        self.deposited_bronze_label = ttk.Label(legend_frame, text="Bronze: 0", foreground='#CD7F32')
+        self.deposited_bronze_label.grid(row=8, column=0, sticky=tk.W)
+        self.deposited_silver_label = ttk.Label(legend_frame, text="Silver: 0", foreground='#C0C0C0')
+        self.deposited_silver_label.grid(row=9, column=0, sticky=tk.W)
+        self.deposited_gold_label = ttk.Label(legend_frame, text="Gold: 0", foreground='#FFD700')
+        self.deposited_gold_label.grid(row=10, column=0, sticky=tk.W)
         
         # Control buttons
         self.button_frame = ttk.Frame(self.main_frame)
@@ -166,74 +173,74 @@ class SimulationGUI:
         self.update_display()
     
     def draw_grid(self):
-        """Draw the current state of the grid on the canvas."""
+        """Draw the current state of the grid in a clean, uniform way."""
         self.canvas.delete("all")
-        
-        try:
-            state = self.simulation.get_simulation_state()
-            grid_contents = state['grid_contents']
-            
-            # Calculate cell size based on canvas size and grid dimensions
-            cell_size = min(400 // len(grid_contents[0]), 400 // len(grid_contents))
-            bar_height = max(3, cell_size // 8)
-            
-            # Draw grid
-            for y, row in enumerate(grid_contents):
-                for x, cell in enumerate(row):
-                    # Calculate cell position
-                    x1 = x * cell_size
-                    y1 = y * cell_size
-                    x2 = x1 + cell_size
-                    y2 = y1 + cell_size
-                    
-                    # Get cell color
-                    symbol = cell['symbol']
-                    color = self.colors.get(symbol, '#FFFFFF')
-                    # Special handling for treasures by type
-                    if symbol == '*':
-                        treasure_type = cell.get('treasure_type')
-                        if treasure_type == 0:  # Bronze
-                            color = self.colors['T_bronze']
-                        elif treasure_type == 1:  # Silver
-                            color = self.colors['T_silver']
-                        elif treasure_type == 2:  # Gold
-                            color = self.colors['T_gold']
-                        # Fill the entire cell with the treasure color
-                        self.canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline='gray')
-                        # Draw treasure value
-                        value = cell.get('value', 0)
-                        self.canvas.create_text(x1 + cell_size//2, y1 + cell_size//2, 
-                                             text=f"{value:.1f}", font=('Arial', int(cell_size*0.3)), fill='black')
-                        continue
-                    # Draw cell background
-                    self.canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline='gray')
-                    
-                    # Draw 'H' for hunter
-                    if symbol == 'H':
-                        stamina = cell.get('stamina', 100)
-                        print(f"[DEBUG][gui] Drawing hunter at ({x},{y}): stamina={stamina}")
-                        # Draw hunter symbol
-                        self.canvas.create_text(x1 + cell_size//2, y1 + cell_size//2, text='H', font=('Arial', int(cell_size*0.7)))
-                        # Draw stamina below the hunter
-                        self.canvas.create_text(x1 + cell_size//2, y2 - cell_size*0.15, 
-                                             text=f"{int(stamina)}%", font=('Arial', int(cell_size*0.3)), fill='black')
-                    elif symbol == 'X':
-                        print(f"[DEBUG][gui] Hunter at ({x},{y}) is COLLAPSED!")
-                        self.canvas.create_text(x1 + cell_size//2, y1 + cell_size//2, text='X', font=('Arial', int(cell_size*0.7)), fill='red')
-        except Exception as e:
-            print(f"Error drawing grid: {str(e)}")
-    
+        cell_width = self.canvas.winfo_width() / self.simulation.size
+        cell_height = self.canvas.winfo_height() / self.simulation.size
+        font_main = ("Arial", int(min(cell_width, cell_height) * 0.5), "bold")
+
+        for y in range(self.simulation.size):
+            for x in range(self.simulation.size):
+                x1 = x * cell_width
+                y1 = y * cell_height
+                x2 = x1 + cell_width
+                y2 = y1 + cell_height
+                cell_info = self.simulation.grid.get_grid_contents(x, y)
+                cell_type = cell_info['type']
+
+                # Set background color by cell type
+                if cell_type == CellType.EMPTY.value:
+                    fill_color = "white"
+                    text = ""
+                elif cell_type == CellType.TREASURE_HUNTER.value:
+                    fill_color = "#00FF00"  # Green for hunters
+                    text = "H"
+                elif cell_type == CellType.TREASURE.value:
+                    treasure_type = cell_info.get('treasure_type', TreasureType.BRONZE.value)
+                    if treasure_type == TreasureType.BRONZE.value:
+                        fill_color = "#CD7F32"
+                    elif treasure_type == TreasureType.SILVER.value:
+                        fill_color = "#C0C0C0"
+                    else:
+                        fill_color = "#FFD700"
+                    # Display the current value as a whole number (no decimal)
+                    text = f"{int(cell_info.get('value', 0))}"
+                elif cell_type == CellType.HIDEOUT.value:
+                    fill_color = "#3399FF"  # Blue for hideout
+                    text = "O"
+                else:
+                    fill_color = "gray"
+                    text = ""
+
+                # Draw cell background
+                self.canvas.create_rectangle(x1, y1, x2, y2, fill=fill_color, outline="black")
+
+                # Draw centered text if needed
+                if text:
+                    self.canvas.create_text(
+                        x1 + cell_width/2, y1 + cell_height/2,
+                        text=text, font=font_main
+                    )
+
     def update_status(self):
         """Update the status labels with current simulation state."""
         try:
+            # Get current simulation state
             state = self.simulation.get_simulation_state()
             metrics = self.simulation.get_success_metrics()
             
+            # Update basic status labels
             self.step_label.config(text=f"Step: {int(state['step'])}")
             self.hunters_label.config(text=f"Active Hunters: {state['active_hunters']}")
-            self.treasure_label.config(text=f"Treasure Collected: {metrics['collected_treasure']:.2f}")
             self.efficiency_label.config(text=f"Collection Efficiency: {metrics['collection_efficiency']:.2f}%")
             self.survival_label.config(text=f"Hunter Survival Rate: {metrics['hunter_survival_rate']:.2f}%")
+            
+            # Update deposited treasure counts in the legend dynamically
+            deposited = metrics.get('deposited_treasure', {'bronze': 0, 'silver': 0, 'gold': 0})
+            self.deposited_bronze_label.config(text=f"Bronze: {deposited.get('bronze', 0)}")
+            self.deposited_silver_label.config(text=f"Silver: {deposited.get('silver', 0)}")
+            self.deposited_gold_label.config(text=f"Gold: {deposited.get('gold', 0)}")
+            
         except Exception as e:
             print(f"Error updating status: {str(e)}")
     

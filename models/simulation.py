@@ -10,11 +10,12 @@ from enum import Enum
 
 class SimulationState(Enum):
     """Enum for different states the simulation can be in"""
-    RUNNING = 0       # Simulation is actively running
-    PAUSED = 1        # Simulation is paused
-    TREASURE_DEPLETED = 2  # All treasure has been collected or lost
-    HUNTERS_ELIMINATED = 3 # All hunters eliminated and no recruitment possible
-    COMPLETED = 4     # Simulation completed successfully
+    INITIALIZED = 0       # Simulation is initialized but not running
+    RUNNING = 1        # Simulation is actively running
+    PAUSED = 2        # Simulation is paused
+    TREASURE_DEPLETED = 3  # All treasure has been collected or lost
+    HUNTERS_ELIMINATED = 4 # All hunters eliminated and no recruitment possible
+    COMPLETED = 5     # Simulation completed successfully
 
 class Simulation:
     """
@@ -28,34 +29,73 @@ class Simulation:
     """
     def __init__(self, size: int = 20):
         """
-        Initialize the Eldoria simulation with a uniform grid of specified size.
+        Initialize the simulation with a grid of specified size.
         
         Args:
-            size (int): Size of the grid (both width and height), minimum 20
+            size (int): Size of the grid (width and height)
         """
-        # Ensure minimum grid size of 20x20
-        self.size = max(20, size)
+        self.size = size
+        self.grid = Grid(size, size)
+        self.current_step = 0
+        self.state = SimulationState.INITIALIZED
+        self.hunters = []
+        self.total_treasure_value = 0.0
+        self.collected_treasure_value = 0.0
+        self.deposited_treasure = {'bronze': 0, 'silver': 0, 'gold': 0}
+        self.eliminated_hunters = 0
+        self.max_hunters = 10  # Maximum number of hunters allowed
+        self.recruitment_cost = 50.0  # Cost to recruit a new hunter
+        self.min_treasure_for_recruitment = 100.0  # Minimum treasure value needed to recruit
         
-        # Initialize the grid
-        self.grid = Grid(self.size, self.size)
+        # Reserve center and adjacent cells for hideout and hunters
+        center_x = self.size // 2
+        center_y = self.size // 2
+        reserved_positions = set()
+        reserved_positions.add((center_x, center_y))
+        adjacent_positions = self.grid.get_all_neighbors(center_x, center_y)
+        # Pick up to 3 adjacent positions for hunters
+        hunter_positions = []
+        for pos in adjacent_positions:
+            if len(hunter_positions) < 3:
+                reserved_positions.add(pos)
+                hunter_positions.append(pos)
+        if len(hunter_positions) < 3:
+            raise ValueError("Not enough space around hideout to place 3 hunters")
+
+        # Mark reserved cells as empty (in case random_fill tries to fill them)
+        for x, y in reserved_positions:
+            self.grid.set_cell(x, y, CellType.EMPTY.value)
+
+        # Now fill the rest of the grid randomly, avoiding reserved positions
+        self.grid.random_fill(reserved_positions=reserved_positions)
         
-        # Initialize collections for entities
-        self.treasure_hunters: List[TreasureHunter] = []
-        self.hideouts: List[Hideout] = []
+        # Place hideout in the center
+        hideout = Hideout(self.grid, center_x, center_y)
+        self.hideouts = [hideout]
+        self.treasure_hunters = []
+        self.hunters = []
+        available_skills = list(HunterSkill)
+        # Scan the grid for all hunter cells and create TreasureHunter objects for each
+        hunter_positions = self.grid.get_entity_positions(CellType.TREASURE_HUNTER.value)
+        for i, (hx, hy) in enumerate(hunter_positions):
+            skill = available_skills[i % len(available_skills)]
+            hunter = TreasureHunter(self.grid, hx, hy, skill)
+            self.treasure_hunters.append(hunter)
+            self.hunters.append(hunter)
+            # Optionally, add to hideout if adjacent
+            if abs(hx - center_x) <= 1 and abs(hy - center_y) <= 1:
+                hideout.add_hunter(hx, hy)
+
+        self.active_hunters = len(self.hunters)
+        
+        # Calculate initial total treasure value
+        for pos, (treasure_type, value) in self.grid.treasure_values.items():
+            self.total_treasure_value += value
         
         # Simulation state
-        self.current_step = 0
-        self.state = SimulationState.PAUSED
-        
-        # Treasure tracking
-        self.total_treasure_value = 0
-        self.collected_treasure_value = 0
-        self.lost_treasure_value = 0
-        self.treasure_collection_history: List[Dict] = []
         self.remaining_treasure_count = 0
         
         # Hunter tracking
-        self.active_hunters = 0
         self.captured_hunters = 0
         self.hunter_history: List[Dict] = []
         
@@ -63,8 +103,6 @@ class Simulation:
         self._calculate_entity_distribution()
         
         # Initialize the simulation
-        self._initialize_hideouts()
-        self._initialize_remaining_cells()
         self._initialize_treasure_tracking()
 
     def _calculate_entity_distribution(self) -> None:
@@ -93,74 +131,6 @@ class Simulation:
         # Adjust ratios for larger grids to maintain balance
         self.treasure_ratio = base_treasure_ratio * (0.8 + (0.2 * (base_size / total_cells) ** 0.5))
 
-    def _initialize_hideouts(self) -> None:
-        """
-        Initialize hideout in the grid with exactly 3 hunters.
-        Places hideout in the center of the grid.
-        """
-        # Place one hideout in the center
-        center_x = self.size // 2
-        center_y = self.size // 2
-        
-        # Create and place hideout
-        hideout = Hideout(self.grid, center_x, center_y)
-        self.hideouts.append(hideout)
-        
-        # Get adjacent empty positions for hunters
-        adjacent_positions = self.grid.get_all_neighbors(center_x, center_y)
-        empty_positions = [pos for pos in adjacent_positions 
-                         if self.grid.get_cell(pos[0], pos[1]) == CellType.EMPTY.value]
-        
-        # Ensure we have exactly 3 hunters
-        if len(empty_positions) >= 3:
-            # Ensure skill diversity by assigning different skills
-            available_skills = list(HunterSkill)
-            random.shuffle(empty_positions)  # Randomize hunter positions
-            
-            for i in range(3):  # Place exactly 3 hunters
-                # Get position for new hunter
-                hunter_x, hunter_y = empty_positions[i]
-                
-                # Cycle through skills to ensure diversity
-                skill = available_skills[i % len(available_skills)]
-                
-                # Create hunter and add to grid
-                hunter = TreasureHunter(self.grid, hunter_x, hunter_y, skill)
-                self.treasure_hunters.append(hunter)
-                
-                # Add hunter to hideout's tracking
-                hideout.add_hunter(hunter_x, hunter_y)
-                
-                # Update active hunters count
-                self.active_hunters += 1
-        else:
-            raise ValueError("Not enough space around hideout to place 3 hunters")
-    
-    def _initialize_remaining_cells(self) -> None:
-        """
-        Initialize the remaining grid cells with exactly 3 treasures and empty spaces.
-        """
-        # Place exactly 3 treasures
-        num_treasures = 3
-        
-        # Place treasures
-        for _ in range(num_treasures):
-            attempts = 0
-            while attempts < 100:  # Prevent infinite loops
-                x = random.randint(0, self.size - 1)
-                y = random.randint(0, self.size - 1)
-                
-                if self.grid.get_cell(x, y) == CellType.EMPTY.value:
-                    # Scale treasure value based on grid size
-                    base_value = random.randint(50, 100)
-                    treasure_value = int(base_value * (1 + (self.size - 20) * 0.02))
-                    # Choose a random treasure type
-                    treasure_type = random.choice(list(TreasureType))
-                    self.grid.set_cell(x, y, CellType.TREASURE.value, treasure_type)
-                    break
-                
-                attempts += 1
-    
     def _initialize_treasure_tracking(self) -> None:
         """
         Initialize treasure tracking by counting total treasure value in the grid.
@@ -241,43 +211,125 @@ class Simulation:
     
     def step(self) -> None:
         """
-        Perform one step of the simulation, updating all entities.
-        This includes:
-        - Treasure hunters moving, collecting treasure, and managing stamina
-        - Hideouts managing their hunters and treasures
-        
-        The simulation will stop if:
-        - All treasure has been collected
-        - All hunters have been eliminated and no recruitment is possible
+        Perform one step of the simulation.
+        Updates all entities and checks for simulation end conditions.
         """
-        # Check if simulation can continue
         if self.state != SimulationState.RUNNING:
             return
         
-        # Update simulation step counter
         self.current_step += 1
-        print(f"[DEBUG][simulation] Step {self.current_step}")
+        print(f"[DEBUG][simulation] Running step {self.current_step}")
         
-        # Degrade treasures each step
+        # Update all hunters
+        for hunter in self.hunters[:]:  # Copy list to allow removal during iteration
+            if hunter.is_active():
+                hunter.update()
+            else:
+                self.eliminated_hunters += 1
+                self.hunters.remove(hunter)
+                print(f"[DEBUG][simulation] Hunter eliminated at step {self.current_step}")
+        
+        # Degrade treasures
         self.grid.degrade_treasures()
         
-        # Reset active hunters count for this step
-        self.active_hunters = 0
+        # Try to recruit new hunters if possible
+        self.try_recruit_hunters()
         
-        # Update all hideouts
-        for hideout in self.hideouts:
-            hideout.update()
+        # Check end conditions
+        self.check_end_conditions()
+    
+    def try_recruit_hunters(self) -> None:
+        """
+        Attempt to recruit new hunters if conditions are met, but never allow more than 3 hunters.
+        """
+        if len(self.hunters) >= 3:
+            return
+        # Check if we have enough treasure value to recruit
+        if self.collected_treasure_value >= self.recruitment_cost:
+            # Find empty positions adjacent to hideouts
+            hideout_positions = self.grid.get_entity_positions(CellType.HIDEOUT.value)
+            for hideout_x, hideout_y in hideout_positions:
+                adjacent = self.grid.get_all_neighbors(hideout_x, hideout_y)
+                empty_adjacent = [pos for pos in adjacent 
+                                if self.grid.get_cell(pos[0], pos[1]) == CellType.EMPTY.value]
+                if empty_adjacent:
+                    # Recruit a new hunter
+                    new_x, new_y = random.choice(empty_adjacent)
+                    skill = random.choice(list(HunterSkill))
+                    hunter = self.grid.create_hunter(new_x, new_y, skill)
+                    if hunter:
+                        self.hunters.append(hunter)
+                        self.collected_treasure_value -= self.recruitment_cost
+                        print(f"[DEBUG][simulation] Recruited new hunter with {skill.name} skill at ({new_x}, {new_y})")
+                        break
+    
+    def check_end_conditions(self) -> None:
+        """
+        Check if the simulation should end based on treasure and hunter conditions.
+        """
+        # Check if all treasures are gone
+        if not self.grid.treasure_values:
+            self.state = SimulationState.TREASURE_DEPLETED
+            print("[DEBUG][simulation] All treasures have been collected or degraded")
+            return
         
-        # Update all treasure hunters
-        for hunter in self.treasure_hunters:
-            if hunter.is_active():
-                self.active_hunters += 1
-                print(f"[DEBUG][simulation] Updating hunter at ({hunter.x},{hunter.y})")
-                hunter.update()
+        # Check if all hunters are eliminated and can't recruit more
+        if not self.hunters and self.collected_treasure_value < self.recruitment_cost:
+            self.state = SimulationState.HUNTERS_ELIMINATED
+            print("[DEBUG][simulation] All hunters eliminated and cannot recruit more")
+            return
+    
+    def get_simulation_state(self) -> Dict:
+        """
+        Get the current state of the simulation.
         
-        # Check if simulation should end
-        if self._check_simulation_end():
-            self.state = SimulationState.COMPLETED
+        Returns:
+            Dict: Current simulation state
+        """
+        return {
+            'step': self.current_step,
+            'active_hunters': len(self.hunters),
+            'eliminated_hunters': self.eliminated_hunters,
+            'total_treasure': self.total_treasure_value,
+            'collected_treasure': self.collected_treasure_value,
+            'state': self.state
+        }
+    
+    def get_success_metrics(self) -> Dict:
+        """
+        Calculate success metrics for the simulation.
+        
+        Returns:
+            Dict: Success metrics including efficiency and survival rates
+        """
+        total_hunters = len(self.hunters) + self.eliminated_hunters
+        collection_efficiency = (self.collected_treasure_value / self.total_treasure_value * 100) if self.total_treasure_value > 0 else 0
+        survival_rate = ((total_hunters - self.eliminated_hunters) / total_hunters * 100) if total_hunters > 0 else 0
+        
+        return {
+            'total_treasure': self.total_treasure_value,
+            'collected_treasure': self.collected_treasure_value,
+            'collection_efficiency': collection_efficiency,
+            'hunter_survival_rate': survival_rate,
+            'avg_treasure_per_hunter': self.collected_treasure_value / total_hunters if total_hunters > 0 else 0,
+            'deposited_treasure': self.deposited_treasure
+        }
+    
+    def increment_collected_treasure(self, treasure_type: int, value: float) -> None:
+        """
+        Increment the collected treasure counter and update deposited treasure counts.
+        
+        Args:
+            treasure_type (int): Type of treasure collected
+            value (float): Value of the collected treasure
+        """
+        self.collected_treasure_value += value
+        if treasure_type == TreasureType.BRONZE.value:
+            self.deposited_treasure['bronze'] += 1
+        elif treasure_type == TreasureType.SILVER.value:
+            self.deposited_treasure['silver'] += 1
+        else:  # GOLD
+            self.deposited_treasure['gold'] += 1
     
     def run(self, steps: Optional[int] = None) -> None:
         """
@@ -336,63 +388,4 @@ class Simulation:
                 'lost': self.lost_treasure_value,
                 'remaining': self.total_treasure_value - (self.collected_treasure_value + self.lost_treasure_value)
             }
-        }
-    
-    def get_success_metrics(self) -> Dict:
-        """
-        Get metrics about the simulation's success in treasure collection.
-        
-        Returns:
-            Dict: Success metrics including:
-                - Total treasure value
-                - Collected treasure value
-                - Lost treasure value
-                - Collection efficiency
-                - Hunter survival rate
-                - Average treasure per hunter
-        """
-        total_hunters = len(self.treasure_hunters)
-        if total_hunters == 0:
-            return {
-                'total_treasure': self.total_treasure_value,
-                'collected_treasure': self.collected_treasure_value,
-                'lost_treasure': self.lost_treasure_value,
-                'collection_efficiency': 0.0,
-                'hunter_survival_rate': 0.0,
-                'avg_treasure_per_hunter': 0.0
-            }
-        
-        return {
-            'total_treasure': self.total_treasure_value,
-            'collected_treasure': self.collected_treasure_value,
-            'lost_treasure': self.lost_treasure_value,
-            'collection_efficiency': (self.collected_treasure_value / self.total_treasure_value) * 100,
-            'hunter_survival_rate': ((total_hunters - self.captured_hunters) / total_hunters) * 100,
-            'avg_treasure_per_hunter': self.collected_treasure_value / total_hunters
-        }
-    
-    def get_simulation_state(self) -> Dict:
-        """
-        Get the current state of the simulation.
-        
-        Returns:
-            Dict: Current simulation state including:
-                - Current step
-                - Number of active hunters
-                - Number of hideouts
-                - Grid state
-                - Treasure collection metrics
-        """
-        state = {
-            'step': self.current_step,
-            'active_hunters': self.active_hunters,
-            'hideouts': len(self.hideouts),
-            'grid_state': self.grid.get_state(),
-            'grid_contents': self.grid.get_grid_contents(),
-            'treasure_metrics': {
-                'total': self.total_treasure_value,
-                'collected': self.collected_treasure_value,
-                'lost': self.lost_treasure_value
-            }
-        }
-        return state 
+        } 

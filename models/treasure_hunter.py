@@ -47,6 +47,12 @@ class TreasureHunter:
         self.known_treasures: List[Tuple[int, int, float]] = []  # (x, y, value)
         self.known_hideouts: List[Tuple[int, int]] = []  # (x, y)
         
+        # Assign unique hunter ID
+        if not hasattr(grid, 'next_hunter_id'):
+            grid.next_hunter_id = 1
+        self.hunter_id = grid.next_hunter_id
+        grid.next_hunter_id += 1
+        
         # Skill-based attributes
         if skill == HunterSkill.NAVIGATION:
             self.scan_range = 3  # Increased scan range
@@ -678,29 +684,38 @@ class TreasureHunter:
             # Find nearest hideout
             nearest_hideout = self.find_nearest_hideout()
             if nearest_hideout:
-                # If adjacent to hideout, move onto it
+                # Check if adjacent to hideout
                 if (abs(self.x - nearest_hideout[0]) + abs(self.y - nearest_hideout[1])) == 1:
-                    # Move onto hideout cell
-                    self.grid.set_cell(self.x, self.y, CellType.EMPTY.value)
-                    self.x, self.y = nearest_hideout
-                    self.grid.set_cell(self.x, self.y, CellType.HIDEOUT.value)  # Keep hideout cell
-                    # Remove hunter from grid (simulate disappearing)
-                    self.just_deposited = True
-                    self.last_hideout_pos = nearest_hideout
-                    self.deposit_pause = 1  # Pause for 1 step
-                    # Increment collected counter (simulate by calling grid or simulation method)
+                    # Deposit treasure and update wealth
+                    treasure_type, value = self.carried_treasure
+                    print(f"[DEBUG][hunter] Depositing {treasure_type} treasure with value {value:.2f} at hideout {nearest_hideout}")
+                    
+                    # Update hunter's wealth based on treasure type
+                    if treasure_type == TreasureType.BRONZE.value:
+                        wealth_increase = 0.03  # 3% increase
+                    elif treasure_type == TreasureType.SILVER.value:
+                        wealth_increase = 0.07  # 7% increase
+                    else:  # GOLD
+                        wealth_increase = 0.13  # 13% increase
+                    
+                    # Get current wealth and update it
+                    current_wealth = self.grid.get_hunter_wealth(self.x, self.y)
+                    if current_wealth is not None:
+                        new_wealth = current_wealth * (1 + wealth_increase)
+                        self.grid.hunter_wealth[(self.x, self.y)] = new_wealth
+                        print(f"[DEBUG][hunter] Wealth increased: {current_wealth:.2f} -> {new_wealth:.2f}")
+                    
+                    # Reset state and treasure
+                    self.carried_treasure = None
+                    self.state = HunterState.EXPLORING
+                    
+                    # Increment collected counter
                     if hasattr(self.grid, 'simulation') and hasattr(self.grid.simulation, 'increment_collected_treasure'):
                         self.grid.simulation.increment_collected_treasure()
-                    self.carried_treasure = None
-                    self.state = HunterState.RESTING
                     return
                 else:
                     # Move towards hideout
                     self.move_towards(nearest_hideout[0], nearest_hideout[1])
-                # Try to deposit if at hideout (legacy, for safety)
-                if self.x == nearest_hideout[0] and self.y == nearest_hideout[1]:
-                    if self.deposit_treasure():
-                        self.state = HunterState.EXPLORING  # Go back to exploring after depositing
         
         elif self.state == HunterState.RESTING:
             # Rest until stamina is restored
