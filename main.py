@@ -3,7 +3,6 @@ import time
 import sys
 import tkinter as tk
 from tkinter import ttk
-from colorama import init, Fore, Style
 from models.simulation import Simulation, SimulationState
 
 def validate_size(size: int) -> int:
@@ -21,23 +20,16 @@ def validate_delay(delay: float) -> float:
     return delay
 
 def print_grid(simulation):
-    """Print the current state of the grid with colored entities."""
+    """Print the current state of the grid with plain symbols."""
     try:
         state = simulation.get_simulation_state()
         grid_contents = state['grid_contents']
         
-        # Print grid without numbers
+        # Print grid without numbers or colors
         for row in grid_contents:
             for cell in row:
                 symbol = cell['symbol']
-                if symbol == 'H':  # Hunter
-                    print(Fore.GREEN + "H" + Style.RESET_ALL, end=" ")
-                elif symbol == 'T':  # Treasure
-                    print(Fore.YELLOW + "T" + Style.RESET_ALL, end=" ")
-                elif symbol == 'O':  # Hideout
-                    print(Fore.BLUE + "O" + Style.RESET_ALL, end=" ")
-                else:  # Empty
-                    print(".", end=" ")
+                print(symbol, end=" ")
             print()
         print()
     except Exception as e:
@@ -141,6 +133,9 @@ class SimulationGUI:
         
         self.step_button = ttk.Button(self.button_frame, text="Step", command=self.single_step)
         self.step_button.grid(row=0, column=2, padx=5)
+        
+        self.reset_button = ttk.Button(self.button_frame, text="Reset", command=self.reset_simulation)
+        self.reset_button.grid(row=0, column=3, padx=5)
         
         # Cell colors
         self.colors = {
@@ -267,6 +262,13 @@ class SimulationGUI:
             
         except Exception as e:
             print(f"Error showing final report: {str(e)}")
+
+    def reset_simulation(self):
+        """Reset the simulation to its initial state."""
+        self.is_running = False
+        # Recreate the simulation object with the same size
+        self.simulation = Simulation(self.simulation.size)
+        self.update_display()
 
 def main():
     try:

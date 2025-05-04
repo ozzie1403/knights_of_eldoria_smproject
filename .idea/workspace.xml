@@ -6,26 +6,7 @@
   <component name="ChangeListManager">
     <list default="true" id="9beab333-fed9-4b17-b969-8a2a53429ad7" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai/decision_making.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai/pathfinding.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/entity.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/garrison.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/grid.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/hideout.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/knight.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/knowledge_base.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/location.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/simulation.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/treasure.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/treasure_hunter.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ui/display.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/utils/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/utils/constants.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/utils/helpers.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
