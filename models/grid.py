@@ -1,6 +1,7 @@
 from typing import List, Tuple, Optional, Dict
 import random
-from models.enums import CellType, TreasureType, HunterSkill
+from models.enums import CellType, TreasureType, HunterSkill, HunterState
+from logic.game_logic import GameLogic
 
 class Grid:
     def __init__(self, width: int, height: int):
@@ -42,7 +43,7 @@ class Grid:
             TreasureType.GOLD.value: 200.0    # Gold starts with 200 value
         }
         # Value degradation rate per step
-        self.treasure_degradation_rate = 0.1  # 10% degradation per step
+        self.treasure_degradation_rate = 0.001  # 0.1% degradation per step
     
     def wrap_coordinates(self, x: int, y: int) -> Tuple[int, int]:
         """
@@ -156,10 +157,12 @@ class Grid:
         for pos, (treasure_type, current_value) in self.treasure_values.items():
             # Calculate new value after degradation
             new_value = current_value * (1 - self.treasure_degradation_rate)
+            print(f"[DEBUG][grid] Treasure at {pos} degrading: {current_value:.2f} -> {new_value:.2f}")
             
             if new_value <= 0:
                 # Mark treasure for removal
                 treasures_to_remove.append(pos)
+                print(f"[DEBUG][grid] Treasure at {pos} has lost all value, removing")
             else:
                 # Update treasure value
                 self.treasure_values[pos] = (treasure_type, new_value)
@@ -392,31 +395,40 @@ class Grid:
     def get_grid_contents(self) -> List[List[Dict]]:
         """
         Get the contents of the grid in a format suitable for visualization.
-        
-        Returns:
-            List[List[Dict]]: 2D array of cell contents, where each cell contains:
-                - type: The cell type (EMPTY, TREASURE, TREASURE_HUNTER, etc.)
-                - value: The treasure value if it's a treasure cell
-                - wealth: The hunter's wealth if it's a hunter cell
-                - symbol: A character representation of the cell type
+        Returns a 2D array of cell contents.
         """
         contents = []
         for y in range(self.height):
             row = []
             for x in range(self.width):
-                cell_type = self.grid[y][x]
+                cell_type = self.get_cell(x, y)
                 cell_info = {
                     'type': cell_type,
+                    'x': x,
+                    'y': y,
                     'symbol': self._get_cell_symbol(cell_type)
                 }
                 
-                if cell_type == CellType.TREASURE.value:
+                # Add additional information based on cell type
+                if cell_type == CellType.TREASURE_HUNTER.value:
+                    hunter = self.get_hunter_at(x, y)
+                    if hunter:
+                        cell_info['stamina'] = hunter.get_stamina_percentage()
+                        cell_info['state'] = hunter.state
+                        cell_info['carrying'] = hunter.state == HunterState.CARRYING and hunter.carried_treasure is not None
+                        # Add wealth information
+                        wealth = self.get_hunter_wealth(x, y)
+                        if wealth is not None:
+                            cell_info['wealth'] = wealth
+                            print(f"[DEBUG][grid] Hunter at ({x},{y}) wealth: {wealth:.2f}")
+                        print(f"[DEBUG][grid] Hunter at ({x},{y}) stamina: {cell_info['stamina']:.2f}%")
+                
+                elif cell_type == CellType.TREASURE.value:
                     treasure_data = self.get_treasure_value(x, y)
                     if treasure_data:
-                        cell_info['value'] = treasure_data[1]
-                        cell_info['treasure_type'] = treasure_data[0]
-                elif cell_type == CellType.TREASURE_HUNTER.value:
-                    cell_info['wealth'] = self.hunter_wealth.get((x, y), self.initial_wealth)
+                        treasure_type, value = treasure_data
+                        cell_info['value'] = value
+                        cell_info['treasure_type'] = treasure_type
                 
                 row.append(cell_info)
             contents.append(row)
@@ -435,7 +447,7 @@ class Grid:
         if cell_type == CellType.EMPTY.value:
             return '.'
         elif cell_type == CellType.TREASURE.value:
-            return 'T'
+            return '*'  # Or any symbol you want for treasures
         elif cell_type == CellType.TREASURE_HUNTER.value:
             return 'H'
         elif cell_type == CellType.HIDEOUT.value:

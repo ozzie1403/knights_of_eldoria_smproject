@@ -9,7 +9,9 @@ class HunterAI:
     def decide_next_action(self):
         """
         Decide the next action for the hunter.
-        Implement your AI logic here.
         """
-        # Example: return a string or action object
+        # If carrying treasure, force return to hideout
+        if self.hunter.carried_treasure is not None:
+            return "return_to_hideout"
+        # Otherwise, explore or look for treasure
         return "explore" 

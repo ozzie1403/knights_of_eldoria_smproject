@@ -256,6 +256,10 @@ class Simulation:
         
         # Update simulation step counter
         self.current_step += 1
+        print(f"[DEBUG][simulation] Step {self.current_step}")
+        
+        # Degrade treasures each step
+        self.grid.degrade_treasures()
         
         # Reset active hunters count for this step
         self.active_hunters = 0
@@ -268,6 +272,7 @@ class Simulation:
         for hunter in self.treasure_hunters:
             if hunter.is_active():
                 self.active_hunters += 1
+                print(f"[DEBUG][simulation] Updating hunter at ({hunter.x},{hunter.y})")
                 hunter.update()
         
         # Check if simulation should end

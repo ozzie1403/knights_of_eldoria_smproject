@@ -121,6 +121,21 @@ class SimulationGUI:
         self.survival_label = ttk.Label(self.status_frame, text="Hunter Survival Rate: 0.00%")
         self.survival_label.grid(row=4, column=0, sticky=tk.W, pady=2)
         
+        # Add legend section
+        legend_frame = ttk.LabelFrame(self.status_frame, text="Legend", padding="5")
+        legend_frame.grid(row=5, column=0, sticky=(tk.W, tk.E), pady=10)
+        
+        # Treasure types and their wealth increase
+        ttk.Label(legend_frame, text="Treasure Types:", font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky=tk.W, pady=2)
+        ttk.Label(legend_frame, text="Bronze (+3% wealth)", foreground='#CD7F32').grid(row=1, column=0, sticky=tk.W)
+        ttk.Label(legend_frame, text="Silver (+7% wealth)", foreground='#C0C0C0').grid(row=2, column=0, sticky=tk.W)
+        ttk.Label(legend_frame, text="Gold (+13% wealth)", foreground='#FFD700').grid(row=3, column=0, sticky=tk.W)
+        
+        # Treasure degradation
+        ttk.Label(legend_frame, text="\nTreasure Degradation:", font=('Arial', 10, 'bold')).grid(row=4, column=0, sticky=tk.W, pady=2)
+        ttk.Label(legend_frame, text="• All treasures lose 0.1% value per step").grid(row=5, column=0, sticky=tk.W)
+        ttk.Label(legend_frame, text="• Treasures are removed when value reaches 0").grid(row=6, column=0, sticky=tk.W)
+        
         # Control buttons
         self.button_frame = ttk.Frame(self.main_frame)
         self.button_frame.grid(row=1, column=0, columnspan=2, pady=10)
@@ -160,6 +175,7 @@ class SimulationGUI:
             
             # Calculate cell size based on canvas size and grid dimensions
             cell_size = min(400 // len(grid_contents[0]), 400 // len(grid_contents))
+            bar_height = max(3, cell_size // 8)
             
             # Draw grid
             for y, row in enumerate(grid_contents):
@@ -174,7 +190,7 @@ class SimulationGUI:
                     symbol = cell['symbol']
                     color = self.colors.get(symbol, '#FFFFFF')
                     # Special handling for treasures by type
-                    if symbol == 'T':
+                    if symbol == '*':
                         treasure_type = cell.get('treasure_type')
                         if treasure_type == 0:  # Bronze
                             color = self.colors['T_bronze']
@@ -182,9 +198,28 @@ class SimulationGUI:
                             color = self.colors['T_silver']
                         elif treasure_type == 2:  # Gold
                             color = self.colors['T_gold']
-                    
-                    # Draw cell
+                        # Fill the entire cell with the treasure color
+                        self.canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline='gray')
+                        # Draw treasure value
+                        value = cell.get('value', 0)
+                        self.canvas.create_text(x1 + cell_size//2, y1 + cell_size//2, 
+                                             text=f"{value:.1f}", font=('Arial', int(cell_size*0.3)), fill='black')
+                        continue
+                    # Draw cell background
                     self.canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline='gray')
+                    
+                    # Draw 'H' for hunter
+                    if symbol == 'H':
+                        stamina = cell.get('stamina', 100)
+                        print(f"[DEBUG][gui] Drawing hunter at ({x},{y}): stamina={stamina}")
+                        # Draw hunter symbol
+                        self.canvas.create_text(x1 + cell_size//2, y1 + cell_size//2, text='H', font=('Arial', int(cell_size*0.7)))
+                        # Draw stamina below the hunter
+                        self.canvas.create_text(x1 + cell_size//2, y2 - cell_size*0.15, 
+                                             text=f"{int(stamina)}%", font=('Arial', int(cell_size*0.3)), fill='black')
+                    elif symbol == 'X':
+                        print(f"[DEBUG][gui] Hunter at ({x},{y}) is COLLAPSED!")
+                        self.canvas.create_text(x1 + cell_size//2, y1 + cell_size//2, text='X', font=('Arial', int(cell_size*0.7)), fill='red')
         except Exception as e:
             print(f"Error drawing grid: {str(e)}")
     
@@ -225,12 +260,12 @@ class SimulationGUI:
             self.update_display()
     
     def run_simulation(self):
-        """Run the simulation with the specified delay."""
+        """Run the simulation step by step"""
         if self.is_running and self.simulation.state == SimulationState.RUNNING:
+            print(f"[DEBUG][GUI] Running simulation step {self.simulation.current_step}")
             self.simulation.step()
             self.update_display()
-            # Schedule next step with delay
-            self.root.after(int(self.delay * 1000), self.run_simulation)
+            self.root.after(1000, self.run_simulation)  # Schedule next step
         elif self.simulation.state in [SimulationState.TREASURE_DEPLETED,
                                      SimulationState.HUNTERS_ELIMINATED,
                                      SimulationState.COMPLETED]:

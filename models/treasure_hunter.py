@@ -2,17 +2,7 @@ from typing import List, Tuple, Optional, Dict, Set
 from enum import Enum
 import random
 from models.grid import Grid
-from models.enums import CellType, TreasureType, HunterSkill
-
-class HunterState(Enum):
-    """Enum for different states a treasure hunter can be in"""
-    EXPLORING = 0    # Looking for treasure
-    CARRYING = 1     # Carrying treasure to hideout
-    RETURNING = 2    # Returning to hideout
-    RESTING = 3      # Resting at hideout
-    COLLAPSED = 4    # Hunter has collapsed from exhaustion
-    SHARING = 5      # Sharing treasure with other hunters
-    COORDINATING = 6 # Coordinating with team members
+from models.enums import CellType, TreasureType, HunterSkill, HunterState
 
 class TreasureMemory:
     """Class to store information about discovered treasures"""
@@ -62,18 +52,18 @@ class TreasureHunter:
             self.scan_range = 3  # Increased scan range
             self.team_share_radius = 4  # Increased sharing range
             self.path_memory: Dict[Tuple[int, int], List[Tuple[int, int]]] = {}  # Remembered paths
-            self.stamina_depletion_rate = 0.02  # 2% depletion per movement
+            self.stamina_depletion_rate = 0.2  # 20% depletion per movement (for debug)
             self.stamina_restore_rate = 0.01  # 1% restoration per step
         elif skill == HunterSkill.ENDURANCE:
             self.scan_range = 2
             self.team_share_radius = 3
-            self.stamina_depletion_rate = 0.015  # 1.5% depletion per movement
+            self.stamina_depletion_rate = 0.2  # 20% depletion per movement (for debug)
             self.stamina_restore_rate = 0.015  # 1.5% restoration per step
         else:  # STEALTH
             self.scan_range = 2
             self.team_share_radius = 3
             self.stealth_level = 0.8  # 80% chance to avoid detection
-            self.stamina_depletion_rate = 0.02  # 2% depletion per movement
+            self.stamina_depletion_rate = 0.2  # 20% depletion per movement (for debug)
             self.stamina_restore_rate = 0.01  # 1% restoration per step
         
         # Minimum value threshold for collecting treasures
@@ -86,7 +76,7 @@ class TreasureHunter:
         
         # Stamina system
         self.max_stamina = 100.0
-        self.current_stamina = self.max_stamina
+        self.current_stamina = self.max_stamina  # Start with full stamina instead of 20.0
         self.min_stamina_to_move = 10.0  # Minimum stamina required to move
         self.critical_stamina_threshold = 6.0  # Critical stamina level (6%)
         
@@ -97,6 +87,11 @@ class TreasureHunter:
         # Team system
         self.team_members: Dict[Tuple[int, int], TeamMember] = {}  # Maps positions to team members
         self.current_step = 0  # Current simulation step
+        
+        self.deposit_pause = 0  # Steps to pause when depositing
+        self.just_deposited = False  # Flag to track if just deposited
+        self.happy = False  # (legacy, not used for display)
+        self.carrying_display_steps = 0  # Show 'T' for this many steps after pickup
     
     def get_skill(self) -> HunterSkill:
         """
@@ -179,8 +174,10 @@ class TreasureHunter:
             self.x = new_x
             self.y = new_y
             
-            # Deplete stamina
-            self.current_stamina = max(0.0, self.current_stamina * (1 - self.stamina_depletion_rate))
+            # Deplete stamina by 2% of max stamina per move
+            old_stamina = self.current_stamina
+            self.current_stamina = max(0.0, self.current_stamina - (self.max_stamina * 0.02))
+            print(f"[DEBUG] Hunter moved to ({new_x},{new_y}), stamina: {old_stamina:.2f} -> {self.current_stamina:.2f} (max: {self.max_stamina})")
             
             # Add position to explored positions
             self.explored_positions.add((new_x, new_y))
@@ -202,20 +199,14 @@ class TreasureHunter:
     def rest(self) -> None:
         """
         Rest to restore stamina. Can only rest at hideouts.
-        Restores stamina based on skill.
+        Restores stamina by 1% per step.
         """
         if self.grid.get_cell(self.x, self.y) == CellType.HIDEOUT.value:
             self.state = HunterState.RESTING
-            # Restore stamina based on skill
-            if self.skill == HunterSkill.ENDURANCE:
-                # Endurance skill provides better stamina restoration
-                self.current_stamina = min(self.max_stamina, 
-                                         self.current_stamina + (self.max_stamina * self.stamina_restore_rate))
-            else:
-                # Normal stamina restoration
-                self.current_stamina = min(self.max_stamina, 
-                                         self.current_stamina + (self.max_stamina * 0.01))
-            
+            # Restore stamina by 1% per step
+            old_stamina = self.current_stamina
+            self.current_stamina = min(self.max_stamina, self.current_stamina + (self.max_stamina * 0.01))
+            print(f"[DEBUG] Hunter resting at ({self.x},{self.y}), stamina: {old_stamina:.2f} -> {self.current_stamina:.2f}")
             # Reset survival steps if stamina is restored
             if self.current_stamina > 0:
                 self.survival_steps_remaining = 0
@@ -318,9 +309,9 @@ class TreasureHunter:
         # Collect treasure and update grid
         new_wealth = self.grid.collect_treasure(self.x, self.y)
         if new_wealth is not None:
-            # Collect treasure
             self.carried_treasure = treasure_data
             self.state = HunterState.CARRYING
+            self.carrying_display_steps = 1  # Show 'T' for one step
             return True
         
         return False
@@ -581,6 +572,33 @@ class TreasureHunter:
         Update hunter's state and perform appropriate actions.
         """
         self.current_step += 1
+        print(f"[DEBUG][hunter] Hunter at ({self.x},{self.y}) stamina: {self.current_stamina:.2f}")
+        
+        # Decrement carrying_display_steps if > 0
+        if self.carrying_display_steps > 0:
+            self.carrying_display_steps -= 1
+        
+        # If hunter is in deposit pause, skip this step
+        if self.deposit_pause > 0:
+            self.deposit_pause -= 1
+            if self.deposit_pause == 0:
+                # Respawn hunter adjacent to hideout
+                if self.just_deposited and hasattr(self, 'last_hideout_pos'):
+                    hideout_x, hideout_y = self.last_hideout_pos
+                    adjacent = self.grid.get_all_neighbors(hideout_x, hideout_y)
+                    empty_adjacent = [pos for pos in adjacent if self.grid.get_cell(pos[0], pos[1]) == CellType.EMPTY.value]
+                    if empty_adjacent:
+                        new_x, new_y = random.choice(empty_adjacent)
+                        self.x, self.y = new_x, new_y
+                        self.grid.set_cell(new_x, new_y, CellType.TREASURE_HUNTER.value)
+                        self.state = HunterState.EXPLORING
+                        self.just_deposited = False
+                        self.happy = True  # Set happy flag for one step
+            return
+        
+        # If carrying (happy) flag is set, reset after one step
+        if self.happy:
+            self.happy = False
         
         # Check if hunter is collapsed
         if self.state == HunterState.COLLAPSED:
@@ -589,14 +607,12 @@ class TreasureHunter:
         # Check if stamina is at 0%
         if self.current_stamina <= 0:
             if self.survival_steps_remaining == 0:
-                # Start survival countdown
-                self.survival_steps_remaining = self.max_survival_steps
+                self.survival_steps_remaining = 3  # 3 steps to survive at 0%
             else:
-                # Decrease survival steps
                 self.survival_steps_remaining -= 1
                 if self.survival_steps_remaining <= 0:
-                    # Hunter collapses
                     self.state = HunterState.COLLAPSED
+                    print(f"[DEBUG][hunter] Hunter at ({self.x},{self.y}) COLLAPSED!")
                     return
         
         # Scan area for treasures and hideouts
@@ -655,16 +671,33 @@ class TreasureHunter:
                                  if self.grid.get_cell(pos[0], pos[1]) == CellType.EMPTY.value]
                 if empty_positions:
                     next_pos = random.choice(empty_positions)
+                    print(f"[DEBUG][hunter] Moving randomly to {next_pos}")
                     self.move(next_pos[0], next_pos[1])
         
         elif self.state == HunterState.CARRYING:
             # Find nearest hideout
             nearest_hideout = self.find_nearest_hideout()
             if nearest_hideout:
-                # Move towards hideout
-                self.move_towards(nearest_hideout[0], nearest_hideout[1])
-                
-                # Try to deposit if at hideout
+                # If adjacent to hideout, move onto it
+                if (abs(self.x - nearest_hideout[0]) + abs(self.y - nearest_hideout[1])) == 1:
+                    # Move onto hideout cell
+                    self.grid.set_cell(self.x, self.y, CellType.EMPTY.value)
+                    self.x, self.y = nearest_hideout
+                    self.grid.set_cell(self.x, self.y, CellType.HIDEOUT.value)  # Keep hideout cell
+                    # Remove hunter from grid (simulate disappearing)
+                    self.just_deposited = True
+                    self.last_hideout_pos = nearest_hideout
+                    self.deposit_pause = 1  # Pause for 1 step
+                    # Increment collected counter (simulate by calling grid or simulation method)
+                    if hasattr(self.grid, 'simulation') and hasattr(self.grid.simulation, 'increment_collected_treasure'):
+                        self.grid.simulation.increment_collected_treasure()
+                    self.carried_treasure = None
+                    self.state = HunterState.RESTING
+                    return
+                else:
+                    # Move towards hideout
+                    self.move_towards(nearest_hideout[0], nearest_hideout[1])
+                # Try to deposit if at hideout (legacy, for safety)
                 if self.x == nearest_hideout[0] and self.y == nearest_hideout[1]:
                     if self.deposit_treasure():
                         self.state = HunterState.EXPLORING  # Go back to exploring after depositing
@@ -754,4 +787,8 @@ class TreasureHunter:
         Returns:
             bool: True if hunter is active, False if collapsed
         """
-        return self.state != HunterState.COLLAPSED 
+        return self.state != HunterState.COLLAPSED
+    
+    def is_happy(self) -> bool:
+        """Return True if the hunter is happy (just deposited treasure)."""
+        return self.happy 
