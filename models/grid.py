@@ -312,7 +312,7 @@ class Grid:
     
     def random_fill(self, reserved_positions=None) -> None:
         """
-        Fill grid with random cell types, ensuring exactly 5 hunters and 1 hideout, and up to 3 treasures.
+        Fill grid with random cell types, ensuring exactly 5 hunters, 1 hideout, and 12 treasures (4 bronze, 4 silver, 4 gold).
         If reserved_positions is provided, those cells are left untouched.
         """
         if reserved_positions is None:
@@ -332,12 +332,19 @@ class Grid:
         if positions:
             x, y = positions.pop()
             self.set_cell(x, y, CellType.HIDEOUT.value)
-        # Place up to 3 treasures
-        for _ in range(3):
+        # Place exactly 4 bronze, 4 silver, 4 gold treasures
+        for _ in range(4):
             if positions:
                 x, y = positions.pop()
-                treasure_type = random.choice(list(TreasureType))
-                self.set_cell(x, y, CellType.TREASURE.value, treasure_type)
+                self.set_cell(x, y, CellType.TREASURE.value, TreasureType.BRONZE)
+        for _ in range(4):
+            if positions:
+                x, y = positions.pop()
+                self.set_cell(x, y, CellType.TREASURE.value, TreasureType.SILVER)
+        for _ in range(4):
+            if positions:
+                x, y = positions.pop()
+                self.set_cell(x, y, CellType.TREASURE.value, TreasureType.GOLD)
         # Fill remaining positions with empty
         for x, y in positions:
             self.set_cell(x, y, CellType.EMPTY.value)

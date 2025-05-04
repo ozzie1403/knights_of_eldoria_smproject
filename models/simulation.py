@@ -41,6 +41,7 @@ class Simulation:
         self.hunters = []
         self.total_treasure_value = 0.0
         self.collected_treasure_value = 0.0
+        self.lost_treasure_value = 0.0  # Track treasure lost (e.g., to knights)
         self.deposited_treasure = {'bronze': 0, 'silver': 0, 'gold': 0}
         self.eliminated_hunters = 0
         self.max_hunters = 10  # Maximum number of hunters allowed
