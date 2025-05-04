@@ -1,70 +1,168 @@
-from models.location import Location
-from utils.constants import EntityType
-from typing import List
+from typing import List, Tuple, Optional, Dict
+from enum import Enum
+from models.grid import Grid
+from models.enums import CellType
 
+class GarrisonState(Enum):
+    """Enum for different states a garrison can be in"""
+    ACTIVE = 0      # Garrison is active and can receive knights
+    FULL = 1        # Garrison is at maximum capacity
+    INACTIVE = 2    # Garrison is temporarily inactive
 
 class Garrison:
     """
-    Represents a garrison where knights are stationed and can patrol from.
+    A garrison in the Kingdom of Eldoria.
+    Garrisons serve as recovery points for knights, providing them with
+    a safe place to rest and restore their energy. Each garrison has a
+    limited capacity for knights and provides energy restoration at a rate
+    of 10% per simulation step until knights are fully recovered.
     """
-
-    def __init__(self, location: Location):
+    def __init__(self, grid: Grid, x: int, y: int, max_knights: int = 3):
         """
-        Initialize a garrison.
-
+        Initialize a garrison with position and capacity.
+        
         Args:
-            location: The location of the garrison on the grid
+            grid (Grid): The game grid
+            x (int): X coordinate
+            y (int): Y coordinate
+            max_knights (int): Maximum number of knights the garrison can hold
         """
-        self.location = location
-        self.type = EntityType.GARRISON
-        self.knights = []  # Knights stationed at this garrison
-
-    def update(self):
-        """Update the garrison state for a simulation step."""
-        # Knights in the garrison regain energy
-        for knight in self.knights:
-            # Restore 5% energy per step
-            knight.energy = min(100, knight.energy + 5)
-
-    def station_knight(self, knight) -> bool:
+        self.grid = grid
+        self.x = x
+        self.y = y
+        self.max_knights = max_knights
+        self.current_knights: Dict[Tuple[int, int], float] = {}  # Dict of knight positions to their energy levels
+        self.state = GarrisonState.ACTIVE
+        self.energy_restore_rate = 10.0  # 10% energy restoration per step
+        
+        # Ensure garrison is placed in the grid
+        self.grid.set_cell(x, y, CellType.GARRISON.value)
+    
+    def can_accept_knight(self) -> bool:
         """
-        Station a knight at this garrison.
-
-        Args:
-            knight: The knight to station
-
+        Check if the garrison can accept another knight.
+        
         Returns:
-            True if the knight was successfully stationed, False otherwise
+            bool: True if garrison can accept another knight
         """
-        if knight in self.knights:
+        return (self.state == GarrisonState.ACTIVE and 
+                len(self.current_knights) < self.max_knights)
+    
+    def accept_knight(self, knight_pos: Tuple[int, int], current_energy: float) -> bool:
+        """
+        Accept a knight into the garrison for recovery.
+        
+        Args:
+            knight_pos (Tuple[int, int]): Position of the knight to accept
+            current_energy (float): Current energy level of the knight
+            
+        Returns:
+            bool: True if knight was accepted
+        """
+        if not self.can_accept_knight():
             return False
-
-        self.knights.append(knight)
-        knight.garrison = self
+        
+        self.current_knights[knight_pos] = current_energy
+        
+        # Update state if garrison becomes full
+        if len(self.current_knights) >= self.max_knights:
+            self.state = GarrisonState.FULL
+        
         return True
-
-    @classmethod
-    def create_random(cls, grid, existing_locations=None):
+    
+    def release_knight(self, knight_pos: Tuple[int, int]) -> Optional[float]:
         """
-        Create a garrison at a random empty location on the grid.
-
+        Release a knight from the garrison.
+        
         Args:
-            grid: The simulation grid
-            existing_locations: Optional list of locations to avoid
-
+            knight_pos (Tuple[int, int]): Position of the knight to release
+            
         Returns:
-            A new Garrison instance, or None if no empty location could be found
+            Optional[float]: Final energy level of the knight, None if knight wasn't in garrison
         """
-        # Find a random empty location
-        location = grid.find_random_empty_location(existing_locations)
-        if not location:
-            return None
-
-        # Create garrison
-        garrison = cls(location)
-
-        # Add to grid
-        if grid.add_entity(garrison):  # Changed from place_entity to add_entity
-            return garrison
-
+        if knight_pos in self.current_knights:
+            final_energy = self.current_knights.pop(knight_pos)
+            
+            # Update state if garrison was full
+            if self.state == GarrisonState.FULL:
+                self.state = GarrisonState.ACTIVE
+            
+            return final_energy
         return None
+    
+    def get_available_slots(self) -> int:
+        """
+        Get the number of available slots in the garrison.
+        
+        Returns:
+            int: Number of available slots
+        """
+        return self.max_knights - len(self.current_knights)
+    
+    def get_energy_restore_rate(self) -> float:
+        """
+        Get the energy restoration rate for knights in this garrison.
+        
+        Returns:
+            float: Energy restoration rate per step (10%)
+        """
+        return self.energy_restore_rate
+    
+    def update(self) -> List[Tuple[Tuple[int, int], float]]:
+        """
+        Update garrison state and handle knight recovery.
+        Restores 10% energy per step for each knight until they are fully recovered.
+        
+        Returns:
+            List[Tuple[Tuple[int, int], float]]: List of knights that are fully recovered
+            and ready to be released, with their final energy levels
+        """
+        fully_recovered_knights = []
+        
+        # Update energy for each knight
+        for knight_pos, current_energy in list(self.current_knights.items()):
+            # Restore 10% of max energy (100.0)
+            new_energy = min(100.0, current_energy + self.energy_restore_rate)
+            self.current_knights[knight_pos] = new_energy
+            
+            # Check if knight is fully recovered
+            if new_energy >= 100.0:
+                fully_recovered_knights.append((knight_pos, new_energy))
+        
+        # Update state based on current capacity
+        if len(self.current_knights) >= self.max_knights:
+            self.state = GarrisonState.FULL
+        elif self.state == GarrisonState.FULL:
+            self.state = GarrisonState.ACTIVE
+        
+        return fully_recovered_knights
+    
+    def get_position(self) -> Tuple[int, int]:
+        """
+        Get the garrison's position.
+        
+        Returns:
+            Tuple[int, int]: (x, y) coordinates
+        """
+        return (self.x, self.y)
+    
+    def get_state(self) -> GarrisonState:
+        """
+        Get the current state of the garrison.
+        
+        Returns:
+            GarrisonState: Current state
+        """
+        return self.state
+    
+    def get_knight_energy(self, knight_pos: Tuple[int, int]) -> Optional[float]:
+        """
+        Get the current energy level of a knight in the garrison.
+        
+        Args:
+            knight_pos (Tuple[int, int]): Position of the knight
+            
+        Returns:
+            Optional[float]: Current energy level, None if knight not in garrison
+        """
+        return self.current_knights.get(knight_pos) 

@@ -1,317 +1,757 @@
-from models.entity import Entity
-from models.location import Location
-from models.knowledge_base import KnowledgeBase
-from utils.constants import (
-    EntityType, HunterSkill,
-    HUNTER_STAMINA_LOSS_MOVE, HUNTER_STAMINA_GAIN_REST,
-    HUNTER_CRITICAL_STAMINA, HUNTER_COLLAPSE_COUNTDOWN
-)
-from utils.helpers import calculate_wrapped_distance, calculate_wrapped_direction
+from typing import List, Tuple, Optional, Dict, Set
+from enum import Enum
 import random
+from models.grid import Grid
+from models.enums import CellType, TreasureType, HunterSkill
 
+class HunterState(Enum):
+    """Enum for different states a treasure hunter can be in"""
+    EXPLORING = 0    # Looking for treasure
+    CARRYING = 1     # Carrying treasure to hideout
+    RETURNING = 2    # Returning to hideout
+    RESTING = 3      # Resting at hideout
+    COLLAPSED = 4    # Hunter has collapsed from exhaustion
+    SHARING = 5      # Sharing treasure with other hunters
+    COORDINATING = 6 # Coordinating with team members
 
-class TreasureHunter(Entity):
-    """Represents a treasure hunter in Eldoria."""
+class TreasureMemory:
+    """Class to store information about discovered treasures"""
+    def __init__(self, x: int, y: int, treasure_type: int, initial_value: float):
+        self.x = x
+        self.y = y
+        self.treasure_type = treasure_type
+        self.initial_value = initial_value
+        self.last_known_value = initial_value
+        self.is_collected = False
+        self.collection_time = None  # Can be used to track when it was collected
+        self.discovered_by: Optional[Tuple[int, int]] = None  # Position of hunter who discovered it
 
-    def __init__(self, location: Location, skill: HunterSkill):
-        super().__init__(location, EntityType.HUNTER)
+class TeamMember:
+    """Class to store information about team members"""
+    def __init__(self, x: int, y: int, last_seen: int, skill: HunterSkill):
+        self.x = x
+        self.y = y
+        self.last_seen = last_seen
+        self.known_treasures: List[Tuple[int, int, float]] = []  # Treasures known by this member
+        self.is_carrying_treasure = False
+        self.last_known_stamina = 100.0
         self.skill = skill
-        self.stamina = 100.0
-        self.carrying_treasure = None
-        self.carrying_treasure_value = 0.0
-        self.wealth = 0.0  # Track hunter's total wealth
-        self.knowledge = KnowledgeBase()
-        self.in_hideout = None
-        self.resting = False
-        self.collapse_countdown = HUNTER_COLLAPSE_COUNTDOWN
-        self.critical_stamina = HUNTER_CRITICAL_STAMINA
 
-        # Properties for scanning radius based on skill
-        self.scan_radius = 3
-        if skill == HunterSkill.PERCEPTION:
-            self.scan_radius = 4  # Better at scanning
-
-        # Properties for stealth based on skill
-        self.stealth_chance = 0.2  # 20% chance to avoid detection
-        if skill == HunterSkill.STEALTH:
-            self.stealth_chance = 0.5  # 50% chance with stealth skill
-
-        # Properties for movement speed based on skill
-        self.speed_multiplier = 1.0
-        if skill == HunterSkill.SPEED:
-            self.speed_multiplier = 1.5  # 50% faster movement
-
-        # Properties for navigation skill
-        self.navigation_knowledge_bonus = 1
+class TreasureHunter:
+    def __init__(self, grid: Grid, x: int, y: int, skill: HunterSkill):
+        """
+        Initialize a treasure hunter with position and initial state.
+        
+        Args:
+            grid (Grid): The game grid
+            x (int): Initial X coordinate
+            y (int): Initial Y coordinate
+            skill (HunterSkill): The hunter's primary skill
+        """
+        self.grid = grid
+        self.x = x
+        self.y = y
+        self.skill = skill
+        self.state = HunterState.EXPLORING
+        self.carried_treasure: Optional[Tuple[int, float]] = None  # (type, value)
+        self.known_treasures: List[Tuple[int, int, float]] = []  # (x, y, value)
+        self.known_hideouts: List[Tuple[int, int]] = []  # (x, y)
+        
+        # Skill-based attributes
         if skill == HunterSkill.NAVIGATION:
-            self.navigation_knowledge_bonus = 2  # Double knowledge radius
-
-    def update(self, grid):
-        """Update hunter state and behavior."""
-        # If collapsed, countdown to removal
-        if self.stamina <= 0:
-            self.collapse_countdown -= 1
-            if self.collapse_countdown <= 0:
-                grid.remove_entity(self)
-                if self.in_hideout:
-                    self.in_hideout.remove_hunter(self)
-            return
-
-        # If resting, regain stamina
-        if self.resting:
-            self.stamina += HUNTER_STAMINA_GAIN_REST
-
-            # While resting in a hideout, share knowledge
-            if self.in_hideout:
-                # Hideout sharing happens in the hideout's update method
-                pass
-
-            if self.stamina >= 100.0:
-                self.stamina = 100.0
-                self.resting = False
-            return
-
-        # Scan surroundings for entities
-        self._scan_surroundings(grid)
-
-        # If stamina is critically low, try to find a hideout to rest
-        if self.stamina <= self.critical_stamina:
-            if self.in_hideout:
-                # Already in a hideout, start resting
-                self.resting = True
-                return
-
-            if self.knowledge.known_hideout_locations:
-                # Find nearest hideout
-                nearest = None
-                min_distance = float('inf')
-
-                for hideout_loc in list(self.knowledge.known_hideout_locations):
-                    # Verify it's still a hideout
-                    entity = grid.get_entity_at(hideout_loc)
-                    if not entity or entity.type != EntityType.HIDEOUT:
-                        self.knowledge.known_hideout_locations.remove(hideout_loc)
-                        continue
-
-                    distance = calculate_wrapped_distance(
-                        self.location.x, self.location.y,
-                        hideout_loc.x, hideout_loc.y,
-                        grid.width, grid.height
-                    )
-
-                    if distance < min_distance:
-                        min_distance = distance
-                        nearest = hideout_loc
-
-                if nearest:
-                    # Move towards hideout
-                    self._move_towards(grid, nearest)
-
-                    # Check if we've reached the hideout
-                    entity = grid.get_entity_at(self.location)
-                    if entity and entity.type == EntityType.HIDEOUT:
-                        # Try to enter the hideout
-                        if entity.add_hunter(self):
-                            self.resting = True
-                        return
-                else:
-                    # No valid hideout known, just rest in place
-                    self.resting = True
-                    return
-            else:
-                # No hideout known, just rest in place
-                self.resting = True
-                return
-
-        # If carrying treasure, try to deposit it at a hideout
-        if self.carrying_treasure_value > 0:
-            if self.knowledge.known_hideout_locations:
-                # Find nearest hideout
-                nearest = None
-                min_distance = float('inf')
-
-                for hideout_loc in list(self.knowledge.known_hideout_locations):
-                    # Verify it's still a hideout
-                    entity = grid.get_entity_at(hideout_loc)
-                    if not entity or entity.type != EntityType.HIDEOUT:
-                        self.knowledge.known_hideout_locations.remove(hideout_loc)
-                        continue
-
-                    distance = calculate_wrapped_distance(
-                        self.location.x, self.location.y,
-                        hideout_loc.x, hideout_loc.y,
-                        grid.width, grid.height
-                    )
-
-                    if distance < min_distance:
-                        min_distance = distance
-                        nearest = hideout_loc
-
-                if nearest:
-                    # Move towards hideout
-                    self._move_towards(grid, nearest)
-
-                    # Check if we've reached the hideout
-                    entity = grid.get_entity_at(self.location)
-                    if entity and entity.type == EntityType.HIDEOUT:
-                        # Deposit treasure
-                        entity.store_treasure(self.carrying_treasure_value)
-                        self.carrying_treasure_value = 0
-                        self.carrying_treasure = None
-                        return
-            else:
-                # No hideout known, explore to find one
-                self._explore_randomly(grid)
-
-        # If not carrying treasure, look for some
-        else:
-            # Check if we know of any treasure locations
-            if self.knowledge.known_treasure_locations:
-                # Find nearest treasure
-                nearest = None
-                min_distance = float('inf')
-
-                for treasure_loc in list(self.knowledge.known_treasure_locations):
-                    # Verify it's still a treasure
-                    entity = grid.get_entity_at(treasure_loc)
-                    if not entity or entity.type != EntityType.TREASURE:
-                        self.knowledge.known_treasure_locations.remove(treasure_loc)
-                        continue
-
-                    distance = calculate_wrapped_distance(
-                        self.location.x, self.location.y,
-                        treasure_loc.x, treasure_loc.y,
-                        grid.width, grid.height
-                    )
-
-                    if distance < min_distance:
-                        min_distance = distance
-                        nearest = treasure_loc
-
-                if nearest:
-                    # Move towards treasure
-                    self._move_towards(grid, nearest)
-
-                    # Check if we've reached the treasure
-                    entity = grid.get_entity_at(self.location)
-                    if entity and entity.type == EntityType.TREASURE:
-                        # Collect the treasure
-                        self.carrying_treasure = entity
-                        self.carrying_treasure_value = entity.value
-
-                        # Increase wealth based on treasure type
-                        wealth_increase = entity.get_wealth_increase()
-                        self.wealth += wealth_increase
-
-                        grid.remove_entity(entity)
-                        # Remove from known locations
-                        if self.location in self.knowledge.known_treasure_locations:
-                            self.knowledge.known_treasure_locations.remove(self.location)
-                        return
-                else:
-                    # No valid treasure known, explore
-                    self._explore_randomly(grid)
-            else:
-                # No treasure known, explore
-                self._explore_randomly(grid)
-
-    def _scan_surroundings(self, grid):
-        """Scan surroundings for entities and update knowledge."""
-        # Adjust scan radius based on navigation skill
-        scan_radius = self.scan_radius
+            self.scan_range = 3  # Increased scan range
+            self.team_share_radius = 4  # Increased sharing range
+            self.path_memory: Dict[Tuple[int, int], List[Tuple[int, int]]] = {}  # Remembered paths
+            self.stamina_depletion_rate = 0.02  # 2% depletion per movement
+            self.stamina_restore_rate = 0.01  # 1% restoration per step
+        elif skill == HunterSkill.ENDURANCE:
+            self.scan_range = 2
+            self.team_share_radius = 3
+            self.stamina_depletion_rate = 0.015  # 1.5% depletion per movement
+            self.stamina_restore_rate = 0.015  # 1.5% restoration per step
+        else:  # STEALTH
+            self.scan_range = 2
+            self.team_share_radius = 3
+            self.stealth_level = 0.8  # 80% chance to avoid detection
+            self.stamina_depletion_rate = 0.02  # 2% depletion per movement
+            self.stamina_restore_rate = 0.01  # 1% restoration per step
+        
+        # Minimum value threshold for collecting treasures
+        self.min_treasure_value = 20.0  # Won't collect treasures below this value
+        
+        # Memory systems
+        self.treasure_memory: Dict[Tuple[int, int], TreasureMemory] = {}  # Maps positions to treasure memory
+        self.hideout_memory: Set[Tuple[int, int]] = set()  # Set of all discovered hideout positions
+        self.explored_positions: Set[Tuple[int, int]] = set()  # Set of all explored positions
+        
+        # Stamina system
+        self.max_stamina = 100.0
+        self.current_stamina = self.max_stamina
+        self.min_stamina_to_move = 10.0  # Minimum stamina required to move
+        self.critical_stamina_threshold = 6.0  # Critical stamina level (6%)
+        
+        # Survival system
+        self.survival_steps_remaining = 0  # Steps remaining before collapse
+        self.max_survival_steps = 3  # Maximum steps to survive at 0% stamina
+        
+        # Team system
+        self.team_members: Dict[Tuple[int, int], TeamMember] = {}  # Maps positions to team members
+        self.current_step = 0  # Current simulation step
+    
+    def get_skill(self) -> HunterSkill:
+        """
+        Get the hunter's skill.
+        
+        Returns:
+            HunterSkill: The hunter's primary skill
+        """
+        return self.skill
+    
+    def get_skill_benefits(self) -> Dict[str, float]:
+        """
+        Get the benefits provided by the hunter's skill.
+        
+        Returns:
+            Dict[str, float]: Dictionary of skill benefits
+        """
+        benefits = {}
         if self.skill == HunterSkill.NAVIGATION:
-            scan_radius += self.navigation_knowledge_bonus
-
-        nearby = grid.get_nearby_entities(self.location, scan_radius)
-
-        for entity in nearby:
-            if entity == self:  # Skip self
-                continue
-
-            if entity.type == EntityType.TREASURE:
-                self.knowledge.add_treasure_location(entity.location)
-            elif entity.type == EntityType.HIDEOUT:
-                self.knowledge.add_hideout_location(entity.location)
-            elif entity.type == EntityType.KNIGHT:
-                self.knowledge.add_knight_location(entity.location)
-
-    def _move_towards(self, grid, target_location: Location):
-        """Move towards a target location."""
-        # Check if already at target
-        if self.location.x == target_location.x and self.location.y == target_location.y:
-            return
-
-        # Calculate direction to move
-        dx, dy = calculate_wrapped_direction(
-            self.location.x, self.location.y,
-            target_location.x, target_location.y,
-            grid.width, grid.height
-        )
-
-        # Prioritize the dimension with larger difference
+            benefits = {
+                "scan_range": self.scan_range,
+                "share_radius": self.team_share_radius,
+                "path_memory": len(self.path_memory)
+            }
+        elif self.skill == HunterSkill.ENDURANCE:
+            benefits = {
+                "stamina_restore": self.stamina_restore_rate,
+                "stamina_depletion": self.stamina_depletion_rate,
+                "max_stamina": self.max_stamina
+            }
+        else:  # STEALTH
+            benefits = {
+                "stealth_level": self.stealth_level,
+                "detection_chance": 1 - self.stealth_level
+            }
+        return benefits
+    
+    def move(self, new_x: int, new_y: int) -> bool:
+        """
+        Move the hunter to a new position if it's adjacent to current position.
+        Allows moving onto a treasure cell and collects it immediately.
+        
+        Args:
+            new_x (int): Target X coordinate
+            new_y (int): Target Y coordinate
+            
+        Returns:
+            bool: True if move was successful, False otherwise
+        """
+        # Check if hunter is collapsed
+        if self.state == HunterState.COLLAPSED:
+            return False
+        
+        # Check if hunter has enough stamina to move
+        if self.current_stamina < self.min_stamina_to_move:
+            return False
+        
+        # Get all possible adjacent positions
+        adjacent_positions = self.grid.get_all_neighbors(self.x, self.y)
+        
+        # Check if target position is adjacent
+        if (new_x, new_y) not in adjacent_positions:
+            return False
+        
+        target_cell = self.grid.get_cell(new_x, new_y)
+        # Allow moving to empty or treasure cell
+        if target_cell not in [CellType.EMPTY.value, CellType.TREASURE.value]:
+            return False
+        
+        # Stealth check for STEALTH skill
+        if self.skill == HunterSkill.STEALTH:
+            if random.random() > self.stealth_level:
+                return False  # Failed stealth check
+        
+        # Move hunter
+        self.grid.set_cell(self.x, self.y, CellType.EMPTY.value)
+        success = self.grid.set_cell(new_x, new_y, CellType.TREASURE_HUNTER.value)
+        
+        if success:
+            self.x = new_x
+            self.y = new_y
+            
+            # Deplete stamina
+            self.current_stamina = max(0.0, self.current_stamina * (1 - self.stamina_depletion_rate))
+            
+            # Add position to explored positions
+            self.explored_positions.add((new_x, new_y))
+            
+            # Update path memory for NAVIGATION skill
+            if self.skill == HunterSkill.NAVIGATION:
+                current_path = self.path_memory.get((self.x, self.y), [])
+                current_path.append((new_x, new_y))
+                self.path_memory[(self.x, self.y)] = current_path
+            
+            # If moved onto a treasure, collect it immediately
+            if target_cell == CellType.TREASURE.value:
+                self.collect_treasure()
+            
+            return True
+        
+        return False
+    
+    def rest(self) -> None:
+        """
+        Rest to restore stamina. Can only rest at hideouts.
+        Restores stamina based on skill.
+        """
+        if self.grid.get_cell(self.x, self.y) == CellType.HIDEOUT.value:
+            self.state = HunterState.RESTING
+            # Restore stamina based on skill
+            if self.skill == HunterSkill.ENDURANCE:
+                # Endurance skill provides better stamina restoration
+                self.current_stamina = min(self.max_stamina, 
+                                         self.current_stamina + (self.max_stamina * self.stamina_restore_rate))
+            else:
+                # Normal stamina restoration
+                self.current_stamina = min(self.max_stamina, 
+                                         self.current_stamina + (self.max_stamina * 0.01))
+            
+            # Reset survival steps if stamina is restored
+            if self.current_stamina > 0:
+                self.survival_steps_remaining = 0
+    
+    def is_at_critical_stamina(self) -> bool:
+        """
+        Check if the hunter's stamina is at a critical level.
+        
+        Returns:
+            bool: True if stamina is at or below critical threshold
+        """
+        return self.current_stamina <= self.critical_stamina_threshold
+    
+    def is_exhausted(self) -> bool:
+        """
+        Check if the hunter has collapsed from exhaustion.
+        
+        Returns:
+            bool: True if hunter has collapsed
+        """
+        return self.state == HunterState.COLLAPSED
+    
+    def get_survival_steps_remaining(self) -> int:
+        """
+        Get the number of steps remaining before collapse.
+        
+        Returns:
+            int: Steps remaining before collapse
+        """
+        return self.survival_steps_remaining
+    
+    def scan_area(self) -> None:
+        """
+        Scan the surrounding area for treasures and hideouts.
+        Updates known_treasures, known_hideouts, and memory systems.
+        """
+        # Clear current scan results
+        self.known_treasures.clear()
+        self.known_hideouts.clear()
+        
+        # Scan in a square pattern around the hunter
+        for dx in range(-self.scan_range, self.scan_range + 1):
+            for dy in range(-self.scan_range, self.scan_range + 1):
+                scan_x = self.x + dx
+                scan_y = self.y + dy
+                scan_pos = (scan_x, scan_y)
+                
+                # Add to explored positions
+                self.explored_positions.add(scan_pos)
+                
+                # Get cell content
+                cell_type = self.grid.get_cell(scan_x, scan_y)
+                
+                if cell_type == CellType.TREASURE.value:
+                    # Get treasure value
+                    treasure_data = self.grid.get_treasure_value(scan_x, scan_y)
+                    if treasure_data is not None:
+                        treasure_type, value = treasure_data
+                        # Update treasure memory
+                        if scan_pos not in self.treasure_memory:
+                            self.treasure_memory[scan_pos] = TreasureMemory(
+                                scan_x, scan_y, treasure_type, value
+                            )
+                        else:
+                            self.treasure_memory[scan_pos].last_known_value = value
+                        
+                        # Only add to known treasures if above minimum value
+                        if value >= self.min_treasure_value:
+                            self.known_treasures.append((scan_x, scan_y, value))
+                
+                elif cell_type == CellType.HIDEOUT.value:
+                    # Add to hideout memory
+                    self.hideout_memory.add(scan_pos)
+                    self.known_hideouts.append(scan_pos)
+    
+    def collect_treasure(self) -> bool:
+        """
+        Collect treasure from current position if available.
+        
+        Returns:
+            bool: True if treasure was collected, False otherwise
+        """
+        # Get treasure data
+        treasure_data = self.grid.get_treasure_value(self.x, self.y)
+        if treasure_data is None:
+            return False
+        
+        treasure_type, value = treasure_data
+        
+        # Only collect if value is above minimum threshold
+        if value < self.min_treasure_value:
+            return False
+        
+        # Update treasure memory
+        pos = (self.x, self.y)
+        if pos in self.treasure_memory:
+            self.treasure_memory[pos].is_collected = True
+            self.treasure_memory[pos].last_known_value = value
+        
+        # Collect treasure and update grid
+        new_wealth = self.grid.collect_treasure(self.x, self.y)
+        if new_wealth is not None:
+            # Collect treasure
+            self.carried_treasure = treasure_data
+            self.state = HunterState.CARRYING
+            return True
+        
+        return False
+    
+    def find_nearest_hideout(self) -> Optional[Tuple[int, int]]:
+        """
+        Find the nearest hideout from known hideouts.
+        
+        Returns:
+            Optional[Tuple[int, int]]: Coordinates of nearest hideout, None if no hideouts known
+        """
+        if not self.hideout_memory:
+            return None
+        
+        # Calculate distances to all known hideouts
+        distances = []
+        for hideout_x, hideout_y in self.hideout_memory:
+            # Calculate Manhattan distance
+            distance = abs(self.x - hideout_x) + abs(self.y - hideout_y)
+            distances.append((distance, (hideout_x, hideout_y)))
+        
+        # Return coordinates of nearest hideout
+        return min(distances, key=lambda x: x[0])[1]
+    
+    def move_towards(self, target_x: int, target_y: int) -> bool:
+        """
+        Move one step towards the target position.
+        
+        Args:
+            target_x (int): Target X coordinate
+            target_y (int): Target Y coordinate
+            
+        Returns:
+            bool: True if move was successful, False otherwise
+        """
+        # Check if hunter has enough stamina to move
+        if self.current_stamina < self.min_stamina_to_move:
+            return False
+        
+        # Calculate direction to target
+        dx = target_x - self.x
+        dy = target_y - self.y
+        
+        # Normalize direction to one step
         if abs(dx) > abs(dy):
-            new_x = (self.location.x + (1 if dx > 0 else -1)) % grid.width
-            new_y = self.location.y
+            new_x = self.x + (1 if dx > 0 else -1)
+            new_y = self.y
         else:
-            new_x = self.location.x
-            new_y = (self.location.y + (1 if dy > 0 else -1)) % grid.height
-
-        # Create new location and try to move
-        new_location = grid.get_wrapped_location(new_x, new_y)
-
-        # Check if the new location has a knight
-        entity_at_new = grid.get_entity_at(new_location)
-        if entity_at_new and entity_at_new.type == EntityType.KNIGHT:
-            # Check stealth to see if we can evade the knight
-            if random.random() < self.stealth_chance:
-                # Successfully evaded, continue with move
-                pass
+            new_x = self.x
+            new_y = self.y + (1 if dy > 0 else -1)
+        
+        return self.move(new_x, new_y)
+    
+    def deposit_treasure(self) -> bool:
+        """
+        Deposit carried treasure at a hideout.
+        
+        Returns:
+            bool: True if treasure was deposited, False otherwise
+        """
+        if self.state != HunterState.CARRYING or self.carried_treasure is None:
+            return False
+        
+        # Check if hunter is at a hideout
+        if self.grid.get_cell(self.x, self.y) != CellType.HIDEOUT.value:
+            return False
+        
+        # Deposit treasure (update hunter's wealth)
+        treasure_type, value = self.carried_treasure
+        self.grid.collect_treasure(self.x, self.y)
+        
+        # Reset state
+        self.carried_treasure = None
+        self.state = HunterState.EXPLORING
+        
+        return True
+    
+    def find_most_valuable_treasure(self) -> Optional[Tuple[int, int, float]]:
+        """
+        Find the most valuable treasure from known treasures.
+        
+        Returns:
+            Optional[Tuple[int, int, float]]: (x, y, value) of most valuable treasure, None if no treasures known
+        """
+        if not self.known_treasures:
+            return None
+        
+        # Sort treasures by value in descending order
+        sorted_treasures = sorted(self.known_treasures, key=lambda t: t[2], reverse=True)
+        return sorted_treasures[0]
+    
+    def get_treasure_history(self) -> List[TreasureMemory]:
+        """
+        Get the history of all discovered treasures.
+        
+        Returns:
+            List[TreasureMemory]: List of all treasure memories
+        """
+        return list(self.treasure_memory.values())
+    
+    def get_explored_positions(self) -> Set[Tuple[int, int]]:
+        """
+        Get all positions that have been explored.
+        
+        Returns:
+            Set[Tuple[int, int]]: Set of explored positions
+        """
+        return self.explored_positions.copy()
+    
+    def get_hideout_history(self) -> Set[Tuple[int, int]]:
+        """
+        Get all discovered hideout positions.
+        
+        Returns:
+            Set[Tuple[int, int]]: Set of hideout positions
+        """
+        return self.hideout_memory.copy()
+    
+    def get_stamina(self) -> float:
+        """
+        Get the current stamina level.
+        
+        Returns:
+            float: Current stamina (0.0 to 100.0)
+        """
+        return self.current_stamina
+    
+    def get_stamina_percentage(self) -> float:
+        """
+        Get the current stamina as a percentage.
+        
+        Returns:
+            float: Current stamina percentage (0.0 to 100.0)
+        """
+        return (self.current_stamina / self.max_stamina) * 100.0
+    
+    def get_rest_time_estimate(self) -> int:
+        """
+        Estimate the number of simulation steps needed to fully restore stamina.
+        
+        Returns:
+            int: Number of steps needed to reach max stamina
+        """
+        if self.current_stamina >= self.max_stamina:
+            return 0
+        
+        remaining_stamina = self.max_stamina - self.current_stamina
+        steps_needed = int(remaining_stamina / (self.max_stamina * self.stamina_restore_rate))
+        return steps_needed
+    
+    def scan_for_team_members(self) -> None:
+        """
+        Scan for nearby team members and update team information.
+        """
+        for dx in range(-self.team_share_radius, self.team_share_radius + 1):
+            for dy in range(-self.team_share_radius, self.team_share_radius + 1):
+                scan_x = self.x + dx
+                scan_y = self.y + dy
+                
+                if self.grid.get_cell(scan_x, scan_y) == CellType.TREASURE_HUNTER.value:
+                    member_pos = (scan_x, scan_y)
+                    if member_pos not in self.team_members:
+                        # Create new team member with random skill
+                        skill = random.choice(list(HunterSkill))
+                        self.team_members[member_pos] = TeamMember(scan_x, scan_y, self.current_step, skill)
+                    else:
+                        self.team_members[member_pos].last_seen = self.current_step
+                        self.team_members[member_pos].x = scan_x
+                        self.team_members[member_pos].y = scan_y
+    
+    def share_information(self) -> None:
+        """
+        Share information with nearby team members.
+        """
+        for member_pos, member in self.team_members.items():
+            if abs(self.x - member.x) + abs(self.y - member.y) <= self.team_share_radius:
+                # Share treasure information
+                for treasure in self.known_treasures:
+                    if treasure not in member.known_treasures:
+                        member.known_treasures.append(treasure)
+                
+                # Share hideout information
+                for hideout in self.hideout_memory:
+                    if hideout not in member.known_treasures:
+                        member.known_treasures.append(hideout)
+    
+    def coordinate_exploration(self) -> None:
+        """
+        Coordinate exploration efforts with team members.
+        """
+        if not self.team_members:
+            return
+        
+        # Find unexplored areas
+        unexplored_areas = []
+        for dx in range(-self.scan_range, self.scan_range + 1):
+            for dy in range(-self.scan_range, self.scan_range + 1):
+                scan_x = self.x + dx
+                scan_y = self.y + dy
+                if (scan_x, scan_y) not in self.explored_positions:
+                    unexplored_areas.append((scan_x, scan_y))
+        
+        if unexplored_areas:
+            # Assign areas to team members
+            for i, area in enumerate(unexplored_areas):
+                member_pos = list(self.team_members.keys())[i % len(self.team_members)]
+                self.team_members[member_pos].known_treasures.append(area)
+    
+    def share_treasure(self, other_hunter_pos: Tuple[int, int]) -> bool:
+        """
+        Share carried treasure with another hunter.
+        
+        Args:
+            other_hunter_pos (Tuple[int, int]): Position of the other hunter
+            
+        Returns:
+            bool: True if treasure was shared successfully
+        """
+        if not self.carried_treasure or other_hunter_pos not in self.team_members:
+            return False
+        
+        # Check if other hunter is within sharing range
+        other_x, other_y = other_hunter_pos
+        if abs(self.x - other_x) + abs(self.y - other_y) > 1:
+            return False
+        
+        # Share treasure
+        self.team_members[other_hunter_pos].is_carrying_treasure = True
+        self.carried_treasure = None
+        self.state = HunterState.EXPLORING
+        return True
+    
+    def get_optimal_path(self, target_x: int, target_y: int) -> Optional[List[Tuple[int, int]]]:
+        """
+        Get the optimal path to a target position using remembered paths.
+        Only available for hunters with NAVIGATION skill.
+        
+        Args:
+            target_x (int): Target X coordinate
+            target_y (int): Target Y coordinate
+            
+        Returns:
+            Optional[List[Tuple[int, int]]]: List of positions forming the path, or None if no path found
+        """
+        if self.skill != HunterSkill.NAVIGATION:
+            return None
+        
+        # Check if we have a remembered path to the target
+        target_pos = (target_x, target_y)
+        if target_pos in self.path_memory:
+            return self.path_memory[target_pos]
+        
+        # If no remembered path, return None
+        return None
+    
+    def update(self) -> None:
+        """
+        Update hunter's state and perform appropriate actions.
+        """
+        self.current_step += 1
+        
+        # Check if hunter is collapsed
+        if self.state == HunterState.COLLAPSED:
+            return
+        
+        # Check if stamina is at 0%
+        if self.current_stamina <= 0:
+            if self.survival_steps_remaining == 0:
+                # Start survival countdown
+                self.survival_steps_remaining = self.max_survival_steps
             else:
-                # Failed to evade, don't move
-                return
-
-        # If the cell is empty or a treasure/hideout, try to move
-        if not entity_at_new or entity_at_new.type in [EntityType.TREASURE, EntityType.HIDEOUT]:
-            if grid.move_entity(self, new_location):
-                # Decrease stamina due to movement
-                stamina_loss = HUNTER_STAMINA_LOSS_MOVE
-                if self.skill == HunterSkill.SPEED:
-                    stamina_loss *= 1.5  # Speed hunters use more stamina
-
-                self.stamina -= stamina_loss
-                if self.stamina < 0:
-                    self.stamina = 0
-
-    def _explore_randomly(self, grid):
-        """Explore in a random direction."""
-        # Choose a random direction
-        directions = [(1, 0), (-1, 0), (0, 1), (0, -1)]
-        dx, dy = random.choice(directions)
-
-        # Calculate new location with wrap-around
-        new_x = (self.location.x + dx) % grid.width
-        new_y = (self.location.y + dy) % grid.height
-        new_location = Location(new_x, new_y)
-
-        # Check if the new location has a knight
-        entity_at_new = grid.get_entity_at(new_location)
-        if entity_at_new and entity_at_new.type == EntityType.KNIGHT:
-            # Check stealth to see if we can evade the knight
-            if random.random() < self.stealth_chance:
-                # Successfully evaded, continue with move
-                pass
+                # Decrease survival steps
+                self.survival_steps_remaining -= 1
+                if self.survival_steps_remaining <= 0:
+                    # Hunter collapses
+                    self.state = HunterState.COLLAPSED
+                    return
+        
+        # Scan area for treasures and hideouts
+        self.scan_area()
+        
+        # Check if hunter needs to rest due to critical stamina
+        if self.is_at_critical_stamina():
+            if self.grid.get_cell(self.x, self.y) == CellType.HIDEOUT.value:
+                self.rest()
             else:
-                # Failed to evade, don't move
-                return
-
-        # If the cell is empty or a treasure/hideout, try to move
-        if not entity_at_new or entity_at_new.type in [EntityType.TREASURE, EntityType.HIDEOUT]:
-            if grid.move_entity(self, new_location):
-                # Decrease stamina due to movement
-                stamina_loss = HUNTER_STAMINA_LOSS_MOVE
-                if self.skill == HunterSkill.SPEED:
-                    stamina_loss *= 1.5  # Speed hunters use more stamina
-
-                self.stamina -= stamina_loss
-                if self.stamina < 0:
-                    self.stamina = 0
+                # Try to find nearest hideout to rest
+                nearest_hideout = self.find_nearest_hideout()
+                if nearest_hideout:
+                    self.state = HunterState.RETURNING
+                    self.move_towards(nearest_hideout[0], nearest_hideout[1])
+            return
+        
+        # Check if hunter needs to rest due to low stamina
+        if self.current_stamina < self.min_stamina_to_move:
+            if self.grid.get_cell(self.x, self.y) == CellType.HIDEOUT.value:
+                self.rest()
+            else:
+                # Try to find nearest hideout to rest
+                nearest_hideout = self.find_nearest_hideout()
+                if nearest_hideout:
+                    self.state = HunterState.RETURNING
+                    self.move_towards(nearest_hideout[0], nearest_hideout[1])
+            return
+        
+        if self.state == HunterState.EXPLORING:
+            # First check if we're adjacent to a treasure
+            adjacent_positions = self.grid.get_all_neighbors(self.x, self.y)
+            for adj_x, adj_y in adjacent_positions:
+                if self.grid.get_cell(adj_x, adj_y) == CellType.TREASURE.value:
+                    # Move to the treasure
+                    if self.move(adj_x, adj_y):
+                        # Try to collect it
+                        if self.collect_treasure():
+                            # After collecting, immediately start returning to hideout
+                            self.state = HunterState.CARRYING
+                            nearest_hideout = self.find_nearest_hideout()
+                            if nearest_hideout:
+                                self.move_towards(nearest_hideout[0], nearest_hideout[1])
+                    return
+            
+            # If not adjacent to a treasure, look for known treasures
+            if self.known_treasures:
+                # Find most valuable treasure
+                most_valuable = self.find_most_valuable_treasure()
+                if most_valuable:
+                    # Move towards most valuable treasure
+                    self.move_towards(most_valuable[0], most_valuable[1])
+            else:
+                # If no known treasures, explore randomly
+                empty_positions = [pos for pos in adjacent_positions 
+                                 if self.grid.get_cell(pos[0], pos[1]) == CellType.EMPTY.value]
+                if empty_positions:
+                    next_pos = random.choice(empty_positions)
+                    self.move(next_pos[0], next_pos[1])
+        
+        elif self.state == HunterState.CARRYING:
+            # Find nearest hideout
+            nearest_hideout = self.find_nearest_hideout()
+            if nearest_hideout:
+                # Move towards hideout
+                self.move_towards(nearest_hideout[0], nearest_hideout[1])
+                
+                # Try to deposit if at hideout
+                if self.x == nearest_hideout[0] and self.y == nearest_hideout[1]:
+                    if self.deposit_treasure():
+                        self.state = HunterState.EXPLORING  # Go back to exploring after depositing
+        
+        elif self.state == HunterState.RESTING:
+            # Rest until stamina is restored
+            if self.current_stamina < self.max_stamina:
+                self.rest()
+            else:
+                self.state = HunterState.EXPLORING
+        
+        elif self.state == HunterState.RETURNING:
+            # Continue moving towards hideout
+            nearest_hideout = self.find_nearest_hideout()
+            if nearest_hideout:
+                self.move_towards(nearest_hideout[0], nearest_hideout[1])
+                
+                # If reached hideout, start resting
+                if self.x == nearest_hideout[0] and self.y == nearest_hideout[1]:
+                    self.state = HunterState.RESTING
+                    self.rest()
+            else:
+                # If no hideout found, go back to exploring
+                self.state = HunterState.EXPLORING
+    
+    def get_team_size(self) -> int:
+        """
+        Get the current size of the team.
+        
+        Returns:
+            int: Number of team members
+        """
+        return len(self.team_members)
+    
+    def get_team_member_positions(self) -> List[Tuple[int, int]]:
+        """
+        Get the positions of all team members.
+        
+        Returns:
+            List[Tuple[int, int]]: List of team member positions
+        """
+        return list(self.team_members.keys())
+    
+    def get_shared_treasures(self) -> List[Tuple[int, int, float]]:
+        """
+        Get all treasures known by the team.
+        
+        Returns:
+            List[Tuple[int, int, float]]: List of shared treasures
+        """
+        shared_treasures = set()
+        for member in self.team_members.values():
+            shared_treasures.update(member.known_treasures)
+        return list(shared_treasures)
+    
+    def get_state(self) -> HunterState:
+        """
+        Get the current state of the hunter.
+        
+        Returns:
+            HunterState: Current state
+        """
+        return self.state
+    
+    def get_position(self) -> Tuple[int, int]:
+        """
+        Get the current position of the hunter.
+        
+        Returns:
+            Tuple[int, int]: Current (x, y) coordinates
+        """
+        return (self.x, self.y)
+    
+    def get_carried_treasure(self) -> Optional[Tuple[int, float]]:
+        """
+        Get the currently carried treasure.
+        
+        Returns:
+            Optional[Tuple[int, float]]: (type, value) of carried treasure, None if not carrying
+        """
+        return self.carried_treasure
+    
+    def is_active(self) -> bool:
+        """
+        Check if the hunter is active (not collapsed).
+        
+        Returns:
+            bool: True if hunter is active, False if collapsed
+        """
+        return self.state != HunterState.COLLAPSED 
