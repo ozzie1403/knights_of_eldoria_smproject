@@ -1,357 +1,110 @@
-from typing import List, Tuple, Dict, Optional, Set
-from enum import Enum
 import random
-from models.grid import Grid
-from models.enums import CellType, TreasureType, HunterSkill
+from typing import List, Dict, Optional
+from models.entity import Entity, EntityType, Position
+from models.types import HunterSkill, KnowledgePacket, MemoryItem
+from .ai_controllers import HideoutAI
 
-class HideoutState(Enum):
-    """Enum for different states a hideout can be in"""
-    ACTIVE = 0      # Hideout is active and can accept hunters
-    FULL = 1        # Hideout is at maximum capacity
-    INACTIVE = 2    # Hideout is temporarily inactive
 
-class StoredTreasure:
-    """Class to store information about treasures stored in the hideout"""
-    def __init__(self, treasure_type: int, value: float, collection_time: int):
-        self.treasure_type = treasure_type
-        self.value = value
-        self.collection_time = collection_time
+class Hideout(Entity):
+    """
+    Represents a hideout for treasure hunters. Hunters can rest here,
+    share knowledge, and new hunters can be recruited.
+    """
 
-class Hideout:
-    def __init__(self, grid: Grid, x: int, y: int):
-        """
-        Initialize a hideout with position and storage capacity.
-        
-        Args:
-            grid (Grid): The game grid
-            x (int): X coordinate
-            y (int): Y coordinate
-        """
-        self.grid = grid
-        self.x = x
-        self.y = y
-        self.state = HideoutState.ACTIVE
-        self.max_capacity = 5  # Maximum number of treasures that can be stored
-        self.stored_treasures: List[StoredTreasure] = []
-        self.current_hunters: List[Tuple[int, int]] = []  # List of hunter positions
-        self.max_hunters = 5  # Maximum number of hunters that can rest here (updated to 5)
-        self.total_value_stored = 0.0  # Total value of all stored treasures
-        self.current_step = 0  # Current simulation step
-        self.recruitment_cooldown = 0  # Cooldown for recruitment attempts
-        self.recruitment_cooldown_steps = 10  # Steps between recruitment attempts
-        
-        # Ensure the hideout is placed in the grid
-        self.grid.set_cell(x, y, CellType.HIDEOUT.value)
-    
-    def get_position(self) -> Tuple[int, int]:
-        """
-        Get the hideout's position.
-        
-        Returns:
-            Tuple[int, int]: (x, y) coordinates
-        """
-        return (self.x, self.y)
-    
-    def get_state(self) -> HideoutState:
-        """
-        Get the current state of the hideout.
-        
-        Returns:
-            HideoutState: Current state
-        """
-        return self.state
-    
-    def get_stored_treasures(self) -> List[StoredTreasure]:
-        """
-        Get all treasures stored in the hideout.
-        
-        Returns:
-            List[StoredTreasure]: List of stored treasures
-        """
-        return self.stored_treasures.copy()
-    
-    def get_current_hunters(self) -> List[Tuple[int, int]]:
-        """
-        Get positions of all hunters currently in the hideout.
-        
-        Returns:
-            List[Tuple[int, int]]: List of hunter positions
-        """
-        return self.current_hunters.copy()
-    
-    def get_hunters(self) -> List[Tuple[int, int]]:
-        """
-        Get positions of all hunters currently in the hideout.
-        This is an alias for get_current_hunters for compatibility.
-        
-        Returns:
-            List[Tuple[int, int]]: List of hunter positions
-        """
-        return self.get_current_hunters()
-    
-    def get_total_value(self) -> float:
-        """
-        Get the total value of all stored treasures.
-        
-        Returns:
-            float: Total value
-        """
-        return self.total_value_stored
-    
-    def can_accept_hunter(self) -> bool:
-        """
-        Check if the hideout can accept another hunter.
-        
-        Returns:
-            bool: True if hideout can accept another hunter
-        """
-        return (self.state == HideoutState.ACTIVE and 
-                len(self.current_hunters) < self.max_hunters)
-    
-    def can_store_treasure(self) -> bool:
-        """
-        Check if the hideout can store another treasure.
-        
-        Returns:
-            bool: True if hideout can store another treasure
-        """
-        return (self.state == HideoutState.ACTIVE and 
-                len(self.stored_treasures) < self.max_capacity)
-    
-    def add_hunter(self, hunter_x: int, hunter_y: int) -> bool:
-        """
-        Add a hunter to the hideout.
-        
-        Args:
-            hunter_x (int): Hunter's X coordinate
-            hunter_y (int): Hunter's Y coordinate
-            
-        Returns:
-            bool: True if hunter was added successfully
-        """
-        if not self.can_accept_hunter():
-            return False
-        
-        hunter_pos = (hunter_x, hunter_y)
-        if hunter_pos not in self.current_hunters:
-            self.current_hunters.append(hunter_pos)
-            self.update_state()
-            return True
-        return False
-    
-    def remove_hunter(self, hunter_x: int, hunter_y: int) -> bool:
-        """
-        Remove a hunter from the hideout.
-        
-        Args:
-            hunter_x (int): Hunter's X coordinate
-            hunter_y (int): Hunter's Y coordinate
-            
-        Returns:
-            bool: True if hunter was removed successfully
-        """
-        hunter_pos = (hunter_x, hunter_y)
-        if hunter_pos in self.current_hunters:
-            self.current_hunters.remove(hunter_pos)
-            self.update_state()
-            return True
-        return False
-    
-    def store_treasure(self, treasure_type: int, value: float, collection_time: int) -> bool:
-        """
-        Store a treasure in the hideout.
-        
-        Args:
-            treasure_type (int): Type of treasure
-            value (float): Value of treasure
-            collection_time (int): Time when treasure was collected
-            
-        Returns:
-            bool: True if treasure was stored successfully
-        """
-        if not self.can_store_treasure():
-            return False
-        
-        treasure = StoredTreasure(treasure_type, value, collection_time)
-        self.stored_treasures.append(treasure)
-        self.total_value_stored += value
-        self.update_state()
-        return True
-    
-    def remove_treasure(self, index: int) -> Optional[StoredTreasure]:
-        """
-        Remove a treasure from the hideout.
-        
-        Args:
-            index (int): Index of treasure to remove
-            
-        Returns:
-            Optional[StoredTreasure]: Removed treasure if successful, None otherwise
-        """
-        if 0 <= index < len(self.stored_treasures):
-            treasure = self.stored_treasures.pop(index)
-            self.total_value_stored -= treasure.value
-            self.update_state()
-            return treasure
-        return None
-    
-    def update_state(self) -> None:
-        """
-        Update the hideout's state based on current conditions.
-        """
-        if len(self.stored_treasures) >= self.max_capacity:
-            self.state = HideoutState.FULL
-        elif len(self.current_hunters) >= self.max_hunters:
-            self.state = HideoutState.FULL
+    def __init__(self, name: str, position: Position, grid_width: int, grid_height: int):
+        super().__init__(name, EntityType.HIDEOUT, position)
+        self.occupants = []  # Hunters currently in the hideout
+        self.max_occupants = 5  # Maximum hunters per hideout
+        self.knowledge_base = KnowledgePacket()  # Shared knowledge
+        self.treasure_collected = 0.0  # Total treasure value collected
+        self.recruitment_chance = 0.2  # 20% chance of recruiting when conditions met
+        self.wealth = 0.0
+        self.treasures_collected = 0
+        self.attraction_radius = 5  # Initial attraction radius
+        self.grid_width = grid_width
+        self.grid_height = grid_height
+
+        # Set visual properties
+        self.icon = "H"  # Hideout icon
+        self.color = "#00FF00"  # Green color
+
+        # Initialize AI controller
+        self.ai = HideoutAI(self, grid_width, grid_height)
+
+    def act(self, grid, entities: List[Entity]) -> None:
+        """Perform the hideout's action for this simulation step."""
+        # Update occupants list with hunters at this position
+        self._update_occupants(grid)
+        self.ai.update(grid, entities)
+
+    def _update_occupants(self, grid) -> None:
+        """Update the list of hunters currently in this hideout."""
+        # Get the entity at this position
+        entity_at_position = grid.get_entity_at(self.position)
+
+        # Check if it's a hunter
+        if entity_at_position and entity_at_position.type == EntityType.HUNTER:
+            # Add to occupants if not already there
+            if entity_at_position not in self.occupants:
+                if len(self.occupants) < self.max_occupants:
+                    self.occupants.append(entity_at_position)
+
+        # Remove occupants that are no longer at this position
+        self.occupants = [o for o in self.occupants if
+                          o.position.x == self.position.x and
+                          o.position.y == self.position.y]
+
+    def receive_knowledge(self, hunter, packet: KnowledgePacket) -> None:
+        """Receive knowledge from a hunter and add it to the knowledge base."""
+        if not packet:
+            return
+
+        # Add treasure locations to knowledge base
+        for memory in packet.treasure_locations:
+            self._update_knowledge_base(memory, 'treasure')
+
+        # Add hideout locations to knowledge base
+        for memory in packet.hideout_locations:
+            self._update_knowledge_base(memory, 'hideout')
+
+    def _update_knowledge_base(self, memory: MemoryItem, memory_type: str) -> None:
+        """Update knowledge base with new information, avoiding duplicates."""
+        # Determine which list to update
+        memory_list = (self.knowledge_base.treasure_locations if memory_type == 'treasure'
+                       else self.knowledge_base.hideout_locations)
+
+        # Check if we already have memory of this position
+        for i, item in enumerate(memory_list):
+            if (item.entity_type == memory.entity_type and
+                    item.position.x == memory.position.x and
+                    item.position.y == memory.position.y):
+                # Update existing memory with newer information if it's more recent
+                if memory.timestamp_seen > item.timestamp_seen:
+                    memory_list[i] = memory
+                return
+
+        # Add new memory item
+        if memory_type == 'treasure':
+            self.knowledge_base.add_treasure_memory(memory)
         else:
-            self.state = HideoutState.ACTIVE
-    
-    def get_treasure_summary(self) -> Dict[int, int]:
-        """
-        Get a summary of stored treasures by type.
-        
-        Returns:
-            Dict[int, int]: Dictionary mapping treasure types to counts
-        """
-        summary = {treasure_type.value: 0 for treasure_type in TreasureType}
-        for treasure in self.stored_treasures:
-            summary[treasure.treasure_type] += 1
-        return summary
-    
-    def get_average_treasure_value(self) -> float:
-        """
-        Get the average value of stored treasures.
-        
-        Returns:
-            float: Average value, or 0.0 if no treasures
-        """
-        if not self.stored_treasures:
-            return 0.0
-        return self.total_value_stored / len(self.stored_treasures)
-    
-    def is_at_position(self, x: int, y: int) -> bool:
-        """
-        Check if the hideout is at the specified position.
-        
-        Args:
-            x (int): X coordinate
-            y (int): Y coordinate
-            
-        Returns:
-            bool: True if hideout is at the position
-        """
-        return self.x == x and self.y == y
-    
-    def get_hunter_count(self) -> int:
-        """
-        Get the current number of hunters in the hideout.
-        
-        Returns:
-            int: Number of hunters
-        """
-        return len(self.current_hunters)
-    
-    def get_available_hunter_slots(self) -> int:
-        """
-        Get the number of available hunter slots.
-        
-        Returns:
-            int: Number of available slots
-        """
-        return self.max_hunters - len(self.current_hunters)
-    
-    def get_hunter_skills(self) -> List[HunterSkill]:
-        """
-        Get the skills of all hunters in the hideout.
-        
-        Returns:
-            List[HunterSkill]: List of hunter skills
-        """
-        skills = []
-        for hunter_pos in self.current_hunters:
-            # Get hunter from grid
-            hunter = self.grid.get_hunter_at(hunter_pos[0], hunter_pos[1])
-            if hunter:
-                skills.append(hunter.get_skill())
-        return skills
-    
-    def has_skill_diversity(self) -> bool:
-        """
-        Check if the hideout has a diverse mix of skills.
-        
-        Returns:
-            bool: True if there are at least 2 different skills present
-        """
-        skills = self.get_hunter_skills()
-        return len(set(skills)) >= 2
-    
-    def can_recruit(self) -> bool:
-        """
-        Check if the hideout can attempt to recruit a new hunter.
-        
-        Returns:
-            bool: True if recruitment is possible
-        """
-        return (self.state == HideoutState.ACTIVE and
-                len(self.current_hunters) < self.max_hunters and
-                self.recruitment_cooldown == 0 and
-                self.has_skill_diversity())
-    
-    def attempt_recruitment(self) -> bool:
-        """
-        Attempt to recruit a new hunter.
-        Has a 20% chance of success if conditions are met.
-        
-        Returns:
-            bool: True if recruitment was successful
-        """
-        if not self.can_recruit():
-            return False
-        
-        # 20% chance of successful recruitment
-        if random.random() < 0.2:
-            # Get existing skills
-            existing_skills = self.get_hunter_skills()
-            # Choose a random skill from existing hunters
-            new_skill = random.choice(existing_skills)
-            
-            # Find an empty adjacent cell for the new hunter
-            adjacent_positions = self.grid.get_all_neighbors(self.x, self.y)
-            empty_positions = [pos for pos in adjacent_positions 
-                             if self.grid.get_cell(pos[0], pos[1]) == CellType.EMPTY.value]
-            
-            if empty_positions:
-                # Create new hunter at random empty position
-                new_pos = random.choice(empty_positions)
-                new_hunter = self.grid.create_hunter(new_pos[0], new_pos[1], new_skill)
-                if new_hunter:
-                    self.add_hunter(new_pos[0], new_pos[1])
-                    self.recruitment_cooldown = self.recruitment_cooldown_steps
-                    return True
-        
-        return False
-    
-    def update(self) -> None:
-        """
-        Update the hideout's state and attempt recruitment if possible.
-        """
-        self.current_step += 1
-        
-        # Update recruitment cooldown
-        if self.recruitment_cooldown > 0:
-            self.recruitment_cooldown -= 1
-        
-        # Attempt recruitment
-        self.attempt_recruitment()
-    
-    def get_skill_distribution(self) -> Dict[HunterSkill, int]:
-        """
-        Get the distribution of skills among hunters in the hideout.
-        
-        Returns:
-            Dict[HunterSkill, int]: Dictionary mapping skills to their count
-        """
-        distribution = {skill: 0 for skill in HunterSkill}
-        for skill in self.get_hunter_skills():
-            distribution[skill] += 1
-        return distribution 
+            self.knowledge_base.add_hideout_memory(memory)
+
+    def share_knowledge(self) -> KnowledgePacket:
+        """Share the hideout's knowledge base with hunters."""
+        return self.knowledge_base
+
+    def deposit_treasure(self, treasure_value: float) -> None:
+        """Deposit treasure and update hideout stats."""
+        self.wealth += treasure_value
+        self.treasures_collected += 1
+        # Increase attraction radius based on wealth
+        self.attraction_radius = min(10, 5 + int(self.wealth / 10))
+
+    def get_report(self) -> str:
+        """Generate a report of the hideout's performance."""
+        return (
+            f"\nHideout {self.id} Report:\n"
+            f"Total Wealth: {self.wealth:.1f}\n"
+            f"Treasures Collected: {self.treasures_collected}\n"
+            f"Attraction Radius: {self.attraction_radius}"
+        )

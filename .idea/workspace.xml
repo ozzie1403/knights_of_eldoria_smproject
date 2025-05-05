@@ -5,9 +5,31 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="9beab333-fed9-4b17-b969-8a2a53429ad7" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/models/ai_controllers.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/models/entity.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/models/hunter.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/models/treasure.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/models/types.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/simulation/simulation_manager.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ui/control_panel.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ui/grid_canvas.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ui/simulation_ui.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/ui/stats_panel.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/utils/entity_factory.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ai/hunter_ai.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/logic/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/logic/game_logic.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/models/enums.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/models/garrison.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/garrison.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/models/grid.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/grid.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/simulation.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/simulation.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/models/hideout.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/hideout.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/models/knight.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/knight.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/models/simulation.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/models/treasure_hunter.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_grid.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -48,36 +70,36 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Python tests.Python tests for test_knight.test_knight_movement.test_knight_attack_hunter.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.Python tests in test_ai_service.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.Python tests in test_grid.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.Python tests in test_hunter.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.Python tests in test_knight.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.Python tests in test_treasure.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python.ai_service.executor&quot;: &quot;Run&quot;,
-    &quot;Python.eldoria.executor&quot;: &quot;Run&quot;,
-    &quot;Python.game_api.executor&quot;: &quot;Run&quot;,
-    &quot;Python.game_controller.executor&quot;: &quot;Run&quot;,
-    &quot;Python.game_service.executor&quot;: &quot;Run&quot;,
-    &quot;Python.grid.executor&quot;: &quot;Run&quot;,
-    &quot;Python.hideout.executor&quot;: &quot;Run&quot;,
-    &quot;Python.hunter.executor&quot;: &quot;Run&quot;,
-    &quot;Python.knight.executor&quot;: &quot;Run&quot;,
-    &quot;Python.main.executor&quot;: &quot;Run&quot;,
-    &quot;Python.movement_service.executor&quot;: &quot;Run&quot;,
-    &quot;Python.simulation.executor&quot;: &quot;Run&quot;,
-    &quot;Python.treasure.executor&quot;: &quot;Run&quot;,
-    &quot;Python.treasure_hunter.executor&quot;: &quot;Run&quot;,
-    &quot;Python.ui.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/Users/ozzys.MSI/PycharmProjects/AICPS7004/Week1&quot;,
-    &quot;run.code.analysis.last.selected.profile&quot;: &quot;pProject Default&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;reference.settingsdialog.project.grazie&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Python tests.Python tests for test_knight.test_knight_movement.test_knight_attack_hunter.executor": "Run",
+    "Python tests.Python tests in test_ai_service.py.executor": "Run",
+    "Python tests.Python tests in test_grid.py.executor": "Run",
+    "Python tests.Python tests in test_hunter.py.executor": "Run",
+    "Python tests.Python tests in test_knight.py.executor": "Run",
+    "Python tests.Python tests in test_treasure.py.executor": "Run",
+    "Python.ai_service.executor": "Run",
+    "Python.eldoria.executor": "Run",
+    "Python.game_api.executor": "Run",
+    "Python.game_controller.executor": "Run",
+    "Python.game_service.executor": "Run",
+    "Python.grid.executor": "Run",
+    "Python.hideout.executor": "Run",
+    "Python.hunter.executor": "Run",
+    "Python.knight.executor": "Run",
+    "Python.main.executor": "Run",
+    "Python.movement_service.executor": "Run",
+    "Python.simulation.executor": "Run",
+    "Python.treasure.executor": "Run",
+    "Python.treasure_hunter.executor": "Run",
+    "Python.ui.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "git-widget-placeholder": "master",
+    "last_opened_file_path": "C:/Users/ozzys.MSI/PycharmProjects/knights_of_eldoria_smproject",
+    "run.code.analysis.last.selected.profile": "pProject Default",
+    "settings.editor.selected.configurable": "reference.settingsdialog.project.grazie"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
       <recent name="C:\Users\ozzys.MSI\PycharmProjects\knights_of_eldoria_smproject\models" />
