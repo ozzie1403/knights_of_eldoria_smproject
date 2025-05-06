@@ -191,6 +191,13 @@ class EldoriaGUI:
                                 center_x + cell_size // 3, center_y + cell_size // 3,
                                 fill="red", tags="entities"
                             )
+                        elif entity.entity_type == EntityType.GARRISON:
+                            self.canvas.create_polygon(
+                                center_x, center_y - cell_size // 2,
+                                          center_x + cell_size // 2, center_y + cell_size // 2,
+                                          center_x - cell_size // 2, center_y + cell_size // 2,
+                                fill="purple", tags="entities"
+                            )
 
     def start_simulation(self):
         if not self.simulation:
@@ -222,10 +229,24 @@ class EldoriaGUI:
             f"Eldoria Simulation - Step {self.current_step} - Treasures: {treasures_left}, Hunters: {hunters_alive}")
 
         # Check if simulation should end
-        if not self.simulation.grid.entities[EntityType.TREASURE] and not self.simulation.hunters:
+        no_grid_treasures = not self.simulation.grid.entities[EntityType.TREASURE]
+        no_carried_treasures = not any(hunter.carrying_treasure for hunter in self.simulation.hunters)
+
+        if no_grid_treasures and no_carried_treasures:
             self.is_running = False
-            messagebox.showinfo("Simulation Ended", "No more treasures or hunters left!")
+            messagebox.showinfo("Simulation Ended", "All treasures have been collected and deposited!")
             return
+
+        if not self.simulation.hunters:
+            can_recruit = False
+            for hideout in self.simulation.hideouts:
+                if hideout.can_accommodate():
+                    can_recruit = True
+                    break
+            if not can_recruit:
+                self.is_running = False
+                messagebox.showinfo("Simulation Ended", "No hunters left and no hideouts can recruit new ones!")
+                return
 
         # Schedule next step
         self.root.after(self.step_delay, self.run_simulation)

@@ -7,6 +7,7 @@ class EntityType(Enum):
     HUNTER = "H"
     HIDEOUT = "O"
     KNIGHT = "K"
+    GARRISON = "G"
 
 class BaseEntity:
     def __init__(self, entity_type: EntityType, position: Tuple[int, int]):

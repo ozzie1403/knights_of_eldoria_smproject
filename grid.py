@@ -5,6 +5,7 @@ from entities.treasure import Treasure, TreasureType
 from entities.hunter import Hunter
 from entities.hideout import Hideout
 from entities.knight import Knight
+from entities.garrison import Garrison
 
 class EldoriaGrid:
     def __init__(self, width: int, height: int):
@@ -15,7 +16,8 @@ class EldoriaGrid:
             EntityType.TREASURE: [],
             EntityType.HUNTER: [],
             EntityType.HIDEOUT: [],
-            EntityType.KNIGHT: []
+            EntityType.KNIGHT: [],
+            EntityType.GARRISON: []
         }
 
     def add_entity(self, entity: BaseEntity) -> None:
