@@ -391,4 +391,4 @@ if __name__ == "__main__":
     sim = Simulation(width=20, height=20)
     sim.setup(num_hunters=3, num_hideouts=2, num_knights=2, num_treasures=10, num_garrisons=2)
     sim.run(steps=50)
-    sim.cleanup() 
+    sim.cleanup()
